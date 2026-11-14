@@ -1,5 +1,8 @@
 # data and secrets
 data/
+# ...except the web app's shipped data: country borders, History calendar, offline sample
+!app/src/FireMap.Web/Data/
+!app/src/FireMap.Web/wwwroot/data/
 *.env
 .env
 .env.*

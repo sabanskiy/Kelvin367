@@ -1,0 +1,36 @@
+{
+  "grids": [
+    {
+      "id": "grid_europe",
+      "from": "2003-01-06",
+      "to": "2026-08-31",
+      "platforms": [
+        "MODIS",
+        "SNPP",
+        "NOAA20",
+        "NOAA21"
+      ],
+      "cells": 628
+    },
+    {
+      "id": "grid_africa",
+      "from": "2003-01-06",
+      "to": "2024-12-23",
+      "platforms": [
+        "MODIS",
+        "SNPP"
+      ],
+      "cells": 7684
+    },
+    {
+      "id": "grid_south_america",
+      "from": "2003-01-06",
+      "to": "2024-12-23",
+      "platforms": [
+        "MODIS",
+        "SNPP"
+      ],
+      "cells": 5926
+    }
+  ]
+}

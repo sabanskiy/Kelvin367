@@ -16,6 +16,11 @@ jobs:
           if git ls-files | grep -E '(^|/)\.env(\.|$)|\.pem$|\.key$'; then echo "secret-like file tracked"; exit 1; fi
           if git grep -n -I -E 'MAP_KEY=[A-Za-z0-9]{16,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}' -- . ':!.github/workflows/checks.yml'; then echo "secret-like string found"; exit 1; fi
       - name: No large files
+        # Allowed: History calendar grids the web app ships (precompressed, served as static files).
+        env:
+          ALLOWED_LARGE: |
+            app/src/FireMap.Web/wwwroot/data/calendar/grid_africa.bin.gz
+            app/src/FireMap.Web/wwwroot/data/calendar/grid_south_america.bin.gz
         run: |
-          big=$(git ls-files -z | xargs -0 -I{} sh -c 'test -f "{}" && [ $(wc -c < "{}") -gt 5000000 ] && echo "{}"' || true)
+          big=$(git ls-files -z | xargs -0 -I{} sh -c 'test -f "{}" && [ $(wc -c < "{}") -gt 5000000 ] && echo "{}"' | grep -vxF "$ALLOWED_LARGE" || true)
           if [ -n "$big" ]; then echo "files over 5 MB:"; echo "$big"; exit 1; fi
