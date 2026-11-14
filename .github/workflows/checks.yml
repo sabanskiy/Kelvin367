@@ -1,0 +1,21 @@
+name: checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Required files exist
+        run: |
+          for f in LICENSE NOTICE README.md DATA.md CONTRIBUTING.md; do test -f "$f" || { echo "missing $f"; exit 1; }; done
+      - name: No secrets or env files
+        run: |
+          if git ls-files | grep -E '(^|/)\.env(\.|$)|\.pem$|\.key$'; then echo "secret-like file tracked"; exit 1; fi
+          if git grep -n -I -E 'MAP_KEY=[A-Za-z0-9]{16,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}' -- . ':!.github/workflows/checks.yml'; then echo "secret-like string found"; exit 1; fi
+      - name: No large files
+        run: |
+          big=$(git ls-files -z | xargs -0 -I{} sh -c 'test -f "{}" && [ $(wc -c < "{}") -gt 5000000 ] && echo "{}"' || true)
+          if [ -n "$big" ]; then echo "files over 5 MB:"; echo "$big"; exit 1; fi
