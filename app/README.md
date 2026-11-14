@@ -26,7 +26,7 @@ User-secrets are only loaded in the Development environment. For other environme
 ## Deploy to Azure
 
 The app runs on **Azure App Service (Linux, .NET 10 LTS)**. Every push to `main` is built, tested and deployed by
-[`.github/workflows/azure-webapp.yml`](.github/workflows/azure-webapp.yml).
+[`.github/workflows/azure-webapp.yml`](../.github/workflows/azure-webapp.yml) (at the repository root).
 
 | Resource | Value |
 |---|---|

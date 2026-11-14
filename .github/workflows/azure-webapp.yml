@@ -1,0 +1,76 @@
+name: Deploy to Azure Web App
+
+# Builds, tests and deploys app/src/FireMap.Web to Azure App Service (Linux, .NET 10).
+# The .NET solution lives in app/, so `run` steps default to that directory.
+# Needs repo variable AZURE_WEBAPP_NAME and secret AZURE_WEBAPP_PUBLISH_PROFILE;
+# until they exist only build + test run. App settings (Firms__MapKey, Firms__CacheDirectory)
+# live in Azure, never in this repo.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: azure-webapp
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      # The React client (src/FireMap.Web/ClientApp) is built by `dotnet publish` (PublishClientApp target).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/src/FireMap.Web/ClientApp/package-lock.json
+
+      - name: Client typecheck and tests
+        working-directory: app/src/FireMap.Web/ClientApp
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+
+      - name: Test
+        run: dotnet test tests/FireMap.Tests -c Release
+
+      # Publish only the web project (publishing the solution would include the test project).
+      - name: Publish
+        run: dotnet publish src/FireMap.Web -c Release -o publish
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: webapp
+          path: app/publish
+          retention-days: 7
+
+  deploy:
+    needs: build
+    if: vars.AZURE_WEBAPP_NAME != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: webapp
+          path: publish
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: publish
