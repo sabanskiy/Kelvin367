@@ -1,0 +1,10 @@
+{
+  "description": "Explore weekly NASA satellite fire detections across Ukraine on an interactive map, compare raw and harmonized records, and download historical data.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

@@ -16,6 +16,7 @@ Active-fire detections come from different satellite sensors (MODIS, then VIIRS 
 | `DATA.md` | data sources, licences, required acknowledgement, data policy |
 | `CONTRIBUTING.md` | how the team works in this repository |
 | `docs/` | project documentation |
+| `design/fire-history-map/` | UI design prototype of the History screen (see its README) |
 | `.github/` | pull request and issue templates, repository checks |
 
 ## Licence
