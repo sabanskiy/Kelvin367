@@ -25,14 +25,14 @@ jobs:
       run:
         working-directory: app
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
 
       # The React client (src/FireMap.Web/ClientApp) is built by `dotnet publish` (PublishClientApp target).
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -52,7 +52,7 @@ jobs:
       - name: Publish
         run: dotnet publish src/FireMap.Web -c Release -o publish
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: webapp
           path: app/publish
@@ -63,7 +63,7 @@ jobs:
     if: vars.AZURE_WEBAPP_NAME != ''
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: webapp
           path: publish

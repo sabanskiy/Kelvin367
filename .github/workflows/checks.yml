@@ -7,7 +7,7 @@ jobs:
   hygiene:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Required files exist
         run: |
           for f in LICENSE NOTICE README.md DATA.md CONTRIBUTING.md; do test -f "$f" || { echo "missing $f"; exit 1; }; done
