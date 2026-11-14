@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FireMap.Web/FireMap.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FireMap.Tests/FireMap.Tests.csproj" />
+  </Folder>
+</Solution>

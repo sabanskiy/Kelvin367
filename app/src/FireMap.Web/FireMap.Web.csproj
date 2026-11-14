@@ -1,0 +1,37 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>4db4b1f2-edc4-44f3-a66c-b09d9430a444</UserSecretsId>
+    <ClientAppRoot>ClientApp\</ClientAppRoot>
+    <!-- The React app is source only: its files are not .NET content, and node_modules is never scanned. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(ClientAppRoot)**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="11.0.0" />
+    <PackageReference Include="NetTopologySuite" Version="2.6.0" />
+    <PackageReference Include="NetTopologySuite.IO.GeoJSON4STJ" Version="4.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Offline sample data (used when no FIRMS MAP_KEY is configured) must ship with the app. -->
+    <None Include="Data\**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!--
+    `dotnet publish` builds the SPA into wwwroot/ before the build, so the static-assets manifest includes it.
+    Plain `dotnet build`/`dotnet run` do not run npm: use `npm run dev` (Vite, proxies /api) or `npm run build` once.
+  -->
+  <Target Name="PublishClientApp" BeforeTargets="BeforeBuild" Condition="'$(_IsPublishing)' == 'true' And '$(SkipClientBuild)' != 'true'">
+    <Exec Command="node --version" ContinueOnError="true">
+      <Output TaskParameter="ExitCode" PropertyName="NodeExitCode" />
+    </Exec>
+    <Error Condition="'$(NodeExitCode)' != '0'" Text="Node.js (22.12+) is required to publish: it builds the React app in ClientApp/." />
+    <Exec WorkingDirectory="$(ClientAppRoot)" Command="npm ci" />
+    <Exec WorkingDirectory="$(ClientAppRoot)" Command="npm run build" />
+  </Target>
+
+</Project>

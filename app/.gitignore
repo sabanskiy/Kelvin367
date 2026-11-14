@@ -1,0 +1,24 @@
+bin/
+obj/
+.vs/
+.vscode/*
+!.vscode/extensions.json
+*.user
+*.suo
+TestResults/
+
+# FIRMS response cache (can be large; zip and share manually if needed)
+**/App_Data/firms-cache/
+
+# Never commit secrets
+appsettings.*.local.json
+.env
+
+# Azure publish profiles contain deployment credentials
+*.PublishSettings
+deploy/
+
+# React client: dependencies and build output (ClientApp builds into wwwroot)
+**/ClientApp/node_modules/
+src/FireMap.Web/wwwroot/index.html
+src/FireMap.Web/wwwroot/assets/
