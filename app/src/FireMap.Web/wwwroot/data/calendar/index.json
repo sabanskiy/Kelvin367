@@ -2,6 +2,19 @@
   "generated": "2026-10-11",
   "aois": [
     {
+      "id": "ukraine",
+      "name": "Ukraine",
+      "kind": "continuous",
+      "from": "2003-01-06",
+      "to": "2026-08-31",
+      "platforms": [
+        "MODIS",
+        "SNPP",
+        "NOAA20",
+        "NOAA21"
+      ]
+    },
+    {
       "id": "spain",
       "name": "Spain (mainland and Balearics)",
       "kind": "continuous",
@@ -111,11 +124,5 @@
       ]
     }
   ],
-  "disclaimer": "Independent prototype; not endorsed by NASA. Data: NASA FIRMS (MODIS, VIIRS).",
-  "excluded": [
-    {
-      "id": "ukraine",
-      "reason": "Source data uses boundaries in which Crimea is not part of Ukraine; excluded until rebuilt with the Ukraine POV boundaries."
-    }
-  ]
+  "disclaimer": "Independent prototype; not endorsed by NASA. Data: NASA FIRMS (MODIS, VIIRS)."
 }

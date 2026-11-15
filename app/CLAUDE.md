@@ -115,12 +115,9 @@ Port of the earlier vanilla-JS map, same behaviour:
 - Regenerate with `dotnet run tools/SlimCountries.cs -- <in.geojson> <out.json> 0.02`. The script checks that Simferopol, Sevastopol and Kerch fall inside UKR.
 - Before adding any boundary, admin-1, geocoding or base-map source, check how it treats Crimea and raise it with the user if it differs.
 
-### History data and the Ukraine exclusion
-The spacechallenge pipeline builds its data with default Natural Earth boundaries, in which Crimea is **not** part of Ukraine. Until it is rebuilt with `ne_10m_admin_0_countries_ukr`, **Ukraine is left out of the History tab**.
-- Import with `dotnet run tools/ImportCalendarData.cs -- <spacechallenge app/data> src/FireMap.Web/wwwroot/data/calendar`. The tool:
-  - drops `ukraine.json` and removes it from `index.json`, where it is listed under `excluded`;
-  - removes every grid cell whose 0.5° square touches UKR in `countries.json`, and re-slices the binary;
-  - fails if the boundary file does not put Simferopol, Sevastopol and Kerch inside UKR.
-- When rebuilt data arrives:
-  - Import it with `--require-crimea`. That keeps Ukraine, and fails unless the grids hold the cells of those three cities.
-  - Then remove `EXCLUDED_AREAS` and the matching notice in the History tab.
+### History data and Crimea
+The spacechallenge pipeline builds its country masks from `ne_10m_admin_0_countries_ukr` (spacechallenge branch `ukraine-pov-boundaries`, `continuous.NATURAL_EARTH`), so its Ukraine preset and `grid_europe` include Crimea.
+- **Always import with `--require-crimea`:** `dotnet run tools/ImportCalendarData.cs -- <spacechallenge app/data> src/FireMap.Web/wwwroot/data/calendar --require-crimea`.
+  - It keeps Ukraine and fails unless the grids hold the cells of Simferopol, Sevastopol and Kerch.
+  - It also fails if `countries.json` does not put those cities inside UKR.
+- **Without the flag the tool falls back to excluding Ukraine.** That mode is for data built with the old default boundaries: it drops `ukraine.json`, lists it under `excluded` in `index.json`, and removes every grid cell touching UKR. If an import fails the Crimea check, do not drop the flag; get the data rebuilt.
