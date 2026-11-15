@@ -1,5 +1,5 @@
 // The Figma data panel: a 420 px card on the left of the map on desktop (collapsible), a bottom
-// drawer on mobile (opens from the "Controls" button, closes with ×, a swipe down or a tap on the map).
+// drawer on mobile (opens from the top bar's "Controls" button, closes with ×, a swipe down or a tap on the map).
 import { useRef, useState, type ReactNode } from 'react';
 import { Icon } from './Icon';
 import { useI18n } from '../i18n';
@@ -66,15 +66,5 @@ export function SidePanel({
         </button>
       )}
     </>
-  );
-}
-
-/** Mobile-only floating button that opens the drawer. */
-export function OpenControlsButton({ onClick }: { onClick: () => void }) {
-  const { t } = useI18n();
-  return (
-    <button type="button" className="open-controls mobile-only" onClick={onClick}>
-      <Icon name="controls" size={19} /> {t('panel.controls')}
-    </button>
   );
 }

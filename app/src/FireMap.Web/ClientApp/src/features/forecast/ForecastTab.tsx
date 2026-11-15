@@ -13,7 +13,7 @@ import { cssVar } from '../../lib/theme';
 import { createMap, viewOf, type AppMap } from '../../map/createMap';
 import { useI18n } from '../../i18n';
 import { Icon } from '../../components/Icon';
-import { OpenControlsButton, SidePanel } from '../../components/SidePanel';
+import { SidePanel } from '../../components/SidePanel';
 import { AreaSelector, type SelectMode } from './AreaSelector';
 import { HotspotLayers, type Days, type LayerStatus, type Period, type Selection } from './HotspotLayers';
 import { StatsView } from './StatsView';
@@ -53,11 +53,16 @@ export function ForecastTab({
   initial,
   sharedView,
   onViewChange,
+  drawerOpen,
+  setDrawerOpen,
 }: {
   active: boolean;
   initial: ForecastHash;
   sharedView: () => MapView | null;
   onViewChange: (v: MapView) => void;
+  /** Mobile drawer state; owned by App so the top bar's Controls button can open it. */
+  drawerOpen: boolean;
+  setDrawerOpen: (open: boolean) => void;
 }) {
   const { t, nf, locale } = useI18n();
   const mapEl = useRef<HTMLDivElement>(null);
@@ -84,7 +89,6 @@ export function ForecastTab({
   const [stats, setStats] = useState<StatsState>({ state: 'idle' });
   const [server, setServer] = useState<ServerStatus | null>(null);
   const [countryQuery, setCountryQuery] = useState('');
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
   // ---- boot: config + layers + countries, then the map and its imperative helpers ----------------
@@ -650,7 +654,6 @@ export function ForecastTab({
         />
       )}
 
-      <OpenControlsButton onClick={() => setDrawerOpen(true)} />
     </div>
   );
 }
