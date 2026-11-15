@@ -590,31 +590,76 @@ select {
   align-items: center;
   gap: 10px;
 }
-.area-select select,
-.map-area-chip select {
-  /* native select = accessible, phone-friendly picker; drawn over the chip */
-  flex: 1;
-  min-width: 0;
+.area-picker-button {
+  width: 100%;
   height: 100%;
-  padding: 0 22px 0 0;
-  appearance: none;
+  min-width: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
   background: transparent;
   border: 0;
-  outline: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.area-picker-button:focus {
+  outline: none; /* the chip shows focus (:focus-within below) */
+}
+.area-picker-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
   text-overflow: ellipsis;
 }
-.area-select select option,
-.map-area-chip select option {
-  color: #0a2540;
-  background: #ffffff;
-}
-.area-select > svg,
-.map-area-chip > svg {
-  /* the dropdown chevron (the area icon sits in its own span) */
-  position: absolute;
-  right: 12px;
+.area-picker-button > svg {
+  /* the dropdown chevron */
+  flex: none;
   color: var(--muted);
-  pointer-events: none;
+}
+.area-list {
+  position: absolute;
+  z-index: 1100;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 100%;
+  max-width: min(360px, calc(100vw - 24px));
+  max-height: min(60vh, 420px);
+  margin: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+  list-style: none;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(10, 37, 64, 0.18);
+}
+.area-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+}
+.area-list li svg {
+  flex: none;
+  color: var(--muted);
+}
+.area-list li.active {
+  background: color-mix(in srgb, var(--indigo) 14%, transparent);
+}
+.area-list li[aria-selected='true'] {
+  color: var(--indigo);
+  font-weight: 600;
+}
+.area-list li[aria-selected='true'] svg {
+  color: var(--indigo);
 }
 .area-select:focus-within,
 .map-area-chip:focus-within {
@@ -622,12 +667,14 @@ select {
   outline-offset: 2px;
 }
 .area-icon {
+  position: relative;
   width: 26px;
   height: 26px;
   flex: none;
   display: grid;
   place-items: center;
   color: var(--ink);
+  pointer-events: none; /* clicks go to the select underneath */
 }
 .draw-button {
   flex: none;

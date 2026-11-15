@@ -15,6 +15,7 @@ import { Segmented } from '../../components/Segmented';
 import { MetricCard } from '../../components/MetricCard';
 import { Scrubber } from '../../components/Scrubber';
 import { SidePanel } from '../../components/SidePanel';
+import { AreaPicker } from './AreaPicker';
 import { Calendar } from './Calendar';
 import { CellLayer } from './CellLayer';
 import { AREA_GEO, DEFAULT_AREA, loadArea, loadGrid, loadGridMeta, loadIndex, loadV2Index, type AreaIndexEntry, type Dataset, type GridIndexEntry, type V2Index } from './data';
@@ -444,31 +445,19 @@ export function HistoryTab({
     setMode(m);
   };
 
+  const areaOptions = [
+    ...(custom ? [{ value: '__custom', label: currentName }] : []),
+    ...areas.map((a) => ({ value: a.id, label: `${areaName(a.id)} (${a.from.slice(0, 4)}–${a.to.slice(0, 4)})` })),
+  ];
+  const pickArea = (id: string) => {
+    if (id === '__custom') return;
+    setCustom(null);
+    setDrawMsg(null);
+    fitNext.current = true;
+    setAreaId(id);
+  };
   const areaPicker = (className: string) => (
-    <label className={className}>
-      <span className="area-icon" aria-hidden="true">
-        <Icon name="area" size={24} />
-      </span>
-      <span className="sr-only">{t('area.aria')}</span>
-      <select
-        value={custom ? '__custom' : areaId}
-        onChange={(e) => {
-          if (e.target.value === '__custom') return;
-          setCustom(null);
-          setDrawMsg(null);
-          fitNext.current = true;
-          setAreaId(e.target.value);
-        }}
-      >
-        {custom && <option value="__custom">{currentName}</option>}
-        {areas.map((a) => (
-          <option key={a.id} value={a.id}>
-            {areaName(a.id)} ({a.from.slice(0, 4)}–{a.to.slice(0, 4)})
-          </option>
-        ))}
-      </select>
-      <Icon name="chevron" size={16} />
-    </label>
+    <AreaPicker className={className} value={custom ? '__custom' : areaId} options={areaOptions} onChange={pickArea} label={t('area.aria')} />
   );
 
   let cellCard = null;
