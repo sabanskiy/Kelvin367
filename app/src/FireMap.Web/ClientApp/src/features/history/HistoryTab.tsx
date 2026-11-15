@@ -39,8 +39,6 @@ import {
 } from './model';
 
 const DEFAULT_VIEW: MapView = { center: [40, -4], zoom: 5 };
-/** The current/new-algorithm switch is for the team only: shown with ?exp=v2 or a shared link with ds:v2. */
-const EXPERIMENT = new URLSearchParams(location.search).get('exp') === 'v2';
 const SELECTED_STYLE: L.PathOptions = { color: '#533afd', weight: 2, fill: false, dashArray: '6 4' };
 
 interface Custom {
@@ -101,7 +99,6 @@ export function HistoryTab({
   const [showAllYears, setShowAllYears] = useState(false);
   const [, setMapTick] = useState(0); // re-render the cell card when the map moves
   const wantWeek = useRef<string | undefined>(initial.week);
-  const showExp = EXPERIMENT || initial.dataset === 'v2';
   const [v2Index, setV2Index] = useState<V2Index | null>(null);
   const [dataset, setDataset] = useState<Dataset>(initial.dataset ?? 'v1');
   const [comparison, setComparison] = useState<Comparison | null>(null);
@@ -126,7 +123,7 @@ export function HistoryTab({
         setCountries(c);
       })
       .catch((e: Error) => setError(t('err.load', { msg: e.message })));
-    if (showExp) void loadV2Index().then(setV2Index);
+    void loadV2Index().then(setV2Index);
     return () => {
       cellLayer.current?.destroy();
       m.destroy();
@@ -137,7 +134,7 @@ export function HistoryTab({
 
   // ---- preset area -----------------------------------------------------------------------------------
   useEffect(() => {
-    if (custom || bootPending || !countries || areas.length === 0 || (showExp && !v2Index)) return;
+    if (custom || bootPending || !countries || areas.length === 0 || !v2Index) return;
     const id = areas.some((a) => a.id === areaId) ? areaId : areas[0].id;
     let cancelled = false;
     setError(null);
@@ -439,14 +436,18 @@ export function HistoryTab({
   const weekStart = data?.weeks[week];
   const weekText = weekStart ? weekLabel(weekStart, locale) : '';
   const yearText = weekStart?.slice(0, 4) ?? '';
-  const flag = custom ? '▭' : AREA_GEO[areaId]?.flag ?? areaId.slice(0, 2).toUpperCase();
   const currentName = custom ? t('area.custom', { n: custom.cells.length }) : areaName(areaId);
-  const rawAvailable = !!data && hasRaw(data);
+  // Ver. 2 has no raw series: Raw is still offered there and switches back to Ver. 1.
+  const rawAvailable = !!data && (ds === 'v2' || hasRaw(data));
+  const changeMode = (m: HistoryMode) => {
+    if (m === 'raw' && ds === 'v2') switchDataset('v1');
+    setMode(m);
+  };
 
   const areaPicker = (className: string) => (
     <label className={className}>
-      <span className="flag" aria-hidden="true">
-        {flag}
+      <span className="area-icon" aria-hidden="true">
+        <Icon name="area" size={24} />
       </span>
       <span className="sr-only">{t('area.aria')}</span>
       <select
@@ -554,32 +555,29 @@ export function HistoryTab({
         )}
         {drawMsg && <p className={`hint ${drawMsg.kind === 'warn' ? 'warn' : ''}`}>{drawMsg.text}</p>}
 
-        {hasV2 && (
-          <section className="ds-section">
-            <Segmented
-              value={ds}
-              onChange={switchDataset}
-              label={t('ds.aria')}
-              className="compact"
-              options={[
-                { value: 'v1', label: t('ds.v1') },
-                { value: 'v2', label: t('ds.v2') },
-              ]}
-            />
-            {ds === 'v2' && <p className="hint warn">{t('ds.v2.note')}</p>}
-          </section>
-        )}
-
         <section className="mode-section">
           <Segmented
             value={mode}
-            onChange={setMode}
+            onChange={changeMode}
             label={t('mode.aria')}
             options={[
               { value: 'raw', label: t('mode.raw'), disabled: !rawAvailable, title: rawAvailable ? undefined : t('mode.raw.missing') },
               { value: 'harm', label: t('mode.harm') },
             ]}
           />
+          {hasV2 && mode === 'harm' && (
+            <div className="ds-switch">
+              <Segmented
+                value={ds}
+                onChange={switchDataset}
+                label={t('ds.aria')}
+                options={[
+                  { value: 'v1', label: t('ds.v1') },
+                  { value: 'v2', label: t('ds.v2') },
+                ]}
+              />
+            </div>
+          )}
           <p>{mode === 'raw' ? t('mode.raw.help') : t('mode.harm.help')}</p>
         </section>
 

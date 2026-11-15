@@ -1,4 +1,4 @@
-// Current data vs the new algorithm's test data (calendar/v2) for one area. The two use different units
+// Ver. 1 (the pipeline's data) vs Ver. 2 (the new algorithm, calendar/v2) for one area. The two use different units
 // (detections vs MODIS-equivalent active cells), so every measure here is unit-free.
 import { percentiles, type Prepared } from './model';
 

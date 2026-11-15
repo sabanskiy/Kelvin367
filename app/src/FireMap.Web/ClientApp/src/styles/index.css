@@ -608,8 +608,9 @@ select {
   color: #0a2540;
   background: #ffffff;
 }
-.area-select svg,
-.map-area-chip svg {
+.area-select > svg,
+.map-area-chip > svg {
+  /* the dropdown chevron (the area icon sits in its own span) */
   position: absolute;
   right: 12px;
   color: var(--muted);
@@ -620,17 +621,13 @@ select {
   outline: 3px solid color-mix(in srgb, var(--indigo) 45%, transparent);
   outline-offset: 2px;
 }
-.flag {
+.area-icon {
   width: 26px;
   height: 26px;
   flex: none;
   display: grid;
   place-items: center;
-  color: #142350;
-  background: linear-gradient(#69a8e8 0 50%, #f3d448 50%);
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
+  color: var(--ink);
 }
 .draw-button {
   flex: none;
@@ -667,8 +664,8 @@ select {
   margin: 0 0 18px;
   font-size: 12px;
 }
-.ds-section {
-  margin: 0 0 18px;
+.ds-switch {
+  margin-top: 12px;
 }
 .ds-compare {
   margin: 0 0 24px;

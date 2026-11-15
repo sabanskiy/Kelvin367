@@ -1,5 +1,5 @@
 {
-  "about": "Test data from the new harmonization algorithm, shown beside the current data with ?exp=v2. Not imported with tools/ImportCalendarData.cs; checked by src/features/history/v2data.test.ts.",
+  "about": "Ver. 2: harmonized with the team's new algorithm, shown beside Ver. 1 through the History version switch. Not imported with tools/ImportCalendarData.cs; checked by src/features/history/v2data.test.ts.",
   "unit": "weekly sum of daily MODIS-equivalent active-cell estimates",
   "aois": [
     {
