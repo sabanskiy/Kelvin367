@@ -57,10 +57,13 @@ def sha256(path: Path) -> str:
 
 
 def _commit() -> str:
+    repository = Path(__file__).resolve().parents[3]
+    if not (repository / "harmonization" / "pyproject.toml").is_file():
+        return "unknown"
     try:
         return subprocess.check_output(
             ["git", "rev-parse", "HEAD"],
-            cwd=Path(__file__).resolve().parents[3],
+            cwd=repository,
             text=True,
             stderr=subprocess.DEVNULL,
         ).strip()
@@ -92,6 +95,11 @@ def export_harmonized(source: Path, output: Path, metadata_path: Path) -> dict:
         "viirs_weights": DEFAULT_WEIGHTS,
         "weight_provenance": WEIGHT_PROVENANCE,
         "availability": _availability_metadata(),
+        "availability_audit": {
+            "verified_on": "2026-10-05",
+            "scope": "S-NPP/NOAA-20 overlap from 2018-04-01; MODIS and earlier years were not audited",
+            "method": "satellite-wide zero-day witness analysis",
+        },
         "generator": {
             "package": "kelvin367-harmonization",
             "version": importlib.metadata.version("kelvin367-harmonization"),

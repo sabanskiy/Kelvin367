@@ -7,7 +7,7 @@ name = "kelvin367-harmonization"
 version = "0.1.0"
 description = "Daily MODIS/VIIRS hot-spot harmonization policies"
 requires-python = ">=3.10"
-dependencies = ["numpy", "pandas", "pyarrow"]
+dependencies = ["numpy>=1.24", "pandas>=2.0", "pyarrow>=14"]
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-cov"]
