@@ -12,6 +12,9 @@
   --muted: #425466;
   --border: #e3e8ee;
   --indigo: #533afd;
+  --fire-from: #f59e0b;
+  --fire-mid: #ea580c;
+  --fire-to: #b91c1c;
   --water: #e8f1fb;
   --shadow: 0 6px 24px rgba(10, 37, 64, 0.12);
   --danger: #c0262d;
@@ -39,6 +42,9 @@
   --muted: #a3b3c7;
   --border: #274767;
   --indigo: #8b7bff;
+  --fire-from: #fde047;
+  --fire-mid: #fb923c;
+  --fire-to: #ef4444;
   --water: #0a2540;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   --danger: #ff8a80;
@@ -150,7 +156,18 @@ select {
   text-decoration: none;
 }
 .wordmark span {
-  color: var(--indigo);
+  /* "367": fire palette, yellow flame to red ember */
+  color: var(--fire-mid);
+  background: linear-gradient(100deg, var(--fire-from), var(--fire-mid) 50%, var(--fire-to));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+@media (forced-colors: active) {
+  .wordmark span {
+    -webkit-text-fill-color: currentColor;
+    background: none;
+  }
 }
 .prototype-badge {
   padding: 5px 10px;
@@ -454,22 +471,6 @@ select {
   display: block;
   width: 20px;
 }
-.map-meta {
-  position: absolute;
-  z-index: 900;
-  top: 72px;
-  right: 72px;
-  max-width: 260px;
-  padding: 6px 8px;
-  color: var(--muted);
-  background: var(--panel);
-  border-radius: 4px;
-  font-size: 14px;
-  text-align: right;
-}
-.map-meta:empty {
-  display: none;
-}
 .map-tooltip {
   position: absolute;
   z-index: 960;
@@ -737,8 +738,8 @@ select {
 }
 
 .calendar-section {
-  padding-top: 24px;
-  border-top: 1px solid var(--border);
+  padding: 24px 0;
+  border-bottom: 1px solid var(--border);
 }
 .section-heading {
   position: relative;
@@ -1742,12 +1743,6 @@ input[type='search'] {
   }
   .legend {
     display: none;
-  }
-  .map-meta {
-    top: 222px;
-    right: 10px;
-    max-width: 180px;
-    font-size: 12px;
   }
   .map-area-chip {
     position: absolute;

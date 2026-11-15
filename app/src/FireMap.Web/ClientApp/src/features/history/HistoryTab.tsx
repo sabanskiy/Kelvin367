@@ -353,6 +353,11 @@ export function HistoryTab({
   const jump = useMemo(() => (data ? sensorJump(data) : null), [data]);
   const calYears = useMemo(() => (!data ? [] : isMobile && !showAllYears ? data.years.slice(-3) : data.years), [data, isMobile, showAllYears]);
 
+  // On mobile the controls drawer covers the map, so opening it pauses playback.
+  useEffect(() => {
+    if (isMobile && drawerOpen) setPlaying(false);
+  }, [isMobile, drawerOpen]);
+
   // Keep the selected week visible in the compact (3-year) calendar.
   useEffect(() => {
     if (data && isMobile && !showAllYears && !calYears.includes(data.year[week])) setShowAllYears(true);
@@ -513,7 +518,6 @@ export function HistoryTab({
         </div>
         <span>{t('legend.more')}</span>
       </div>
-      <div className="map-meta">{grid ? t(ds === 'v2' ? 'map.meta.raw' : 'map.meta', { week: `${weekText} ${yearText}` }) : data ? t('map.noGrid') : ''}</div>
 
       <SidePanel
         eyebrow={t('hist.eyebrow')}
@@ -579,6 +583,51 @@ export function HistoryTab({
           <p>{mode === 'raw' ? t('mode.raw.help') : t('mode.harm.help')}</p>
         </section>
 
+        <section className="calendar-section" id="hist-calendar">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">{t('cal.eyebrow')}</span>
+              <h2>{t('cal.title')}</h2>
+            </div>
+            <details className="info-pop">
+              <summary className="icon-info" aria-label={t('cal.info')} title={t('cal.info')}>
+                <Icon name="info" size={17} />
+              </summary>
+              <p>{t('cal.info.text')}</p>
+            </details>
+          </div>
+          <div className="calendar-controls">
+            <Segmented
+              value={calView}
+              onChange={setCalView}
+              label={t('cal.view.aria')}
+              className="compact"
+              options={[
+                { value: 'counts', label: t('cal.view.counts') },
+                { value: 'unusual', label: t('cal.view.unusual') },
+              ]}
+            />
+            {calView === 'unusual' && (
+              <span className="cal-legend">
+                {t('legend.quieter')}
+                <i style={{ background: `linear-gradient(90deg, ${[0, 25, 50, 75, 100].map(divColor).join(',')})` }} />
+                {t('legend.busier')}
+              </span>
+            )}
+          </div>
+          {data && shown && (
+            <Calendar data={data} shown={shown} pct={pct} view={calView} mode={mode} selected={week} onSelect={onWeek} years={calYears} theme={theme} />
+          )}
+          {data && isMobile && data.years.length > 3 && (
+            <button type="button" className="link-btn show-years" onClick={() => setShowAllYears(!showAllYears)}>
+              {showAllYears ? t('cal.showRecent') : t('cal.showAll', { n: data.years.length })}
+            </button>
+          )}
+          <button type="button" className="download-button" onClick={downloadCsv} disabled={!data}>
+            <Icon name="download" /> {t('csv')}
+          </button>
+        </section>
+
         {data && (
           <div className="metrics" aria-label={t('metrics.aria')}>
             <MetricCard
@@ -628,51 +677,6 @@ export function HistoryTab({
             </div>
           </div>
         )}
-
-        <section className="calendar-section" id="hist-calendar">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">{t('cal.eyebrow')}</span>
-              <h2>{t('cal.title')}</h2>
-            </div>
-            <details className="info-pop">
-              <summary className="icon-info" aria-label={t('cal.info')} title={t('cal.info')}>
-                <Icon name="info" size={17} />
-              </summary>
-              <p>{t('cal.info.text')}</p>
-            </details>
-          </div>
-          <div className="calendar-controls">
-            <Segmented
-              value={calView}
-              onChange={setCalView}
-              label={t('cal.view.aria')}
-              className="compact"
-              options={[
-                { value: 'counts', label: t('cal.view.counts') },
-                { value: 'unusual', label: t('cal.view.unusual') },
-              ]}
-            />
-            {calView === 'unusual' && (
-              <span className="cal-legend">
-                {t('legend.quieter')}
-                <i style={{ background: `linear-gradient(90deg, ${[0, 25, 50, 75, 100].map(divColor).join(',')})` }} />
-                {t('legend.busier')}
-              </span>
-            )}
-          </div>
-          {data && shown && (
-            <Calendar data={data} shown={shown} pct={pct} view={calView} mode={mode} selected={week} onSelect={onWeek} years={calYears} theme={theme} />
-          )}
-          {data && isMobile && data.years.length > 3 && (
-            <button type="button" className="link-btn show-years" onClick={() => setShowAllYears(!showAllYears)}>
-              {showAllYears ? t('cal.showRecent') : t('cal.showAll', { n: data.years.length })}
-            </button>
-          )}
-          <button type="button" className="download-button" onClick={downloadCsv} disabled={!data}>
-            <Icon name="download" /> {t('csv')}
-          </button>
-        </section>
       </SidePanel>
 
       {data && (
