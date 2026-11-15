@@ -1,12 +1,14 @@
-// Forecast tab: today's live NASA FIRMS map (port of the original app.js), in the Figma layout.
-// A model forecast will plug in through ./outlook.ts; until then this is the observation map.
+// Forecast tab: today's live NASA FIRMS map (port of the original app.js), in the Figma layout, plus the
+// team's 3-day forecast for central Spain (./outlook.ts, ./OutlookLayer.ts): a "Forecast" entry in Layers
+// adds the forecast's future days to the timeline, and its cells show on the map on those days.
 //
 // Rules carried over from the original app:
 //  - Date inputs only validate while you edit; nothing loads until Apply/Enter (two-ended edits stay possible).
 //  - Only one area filter at a time; pressing a tool button again removes its filter.
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import L from 'leaflet';
 import { api, type AppConfig, type LayerDef, type ServerStatus, type StatsResult } from '../../lib/api';
-import { addDays, dayDiff, enumerateDays, rangeLabel, shiftYears } from '../../lib/dates';
+import { addDays, dayDiff, enumerateDays, rangeLabel, shiftYears, shortDate } from '../../lib/dates';
 import { loadCountries, type Bbox } from '../../lib/geo';
 import { forecastHash, replaceHash, type ForecastHash, type MapView, type Range } from '../../lib/hashState';
 import { cssVar } from '../../lib/theme';
@@ -18,6 +20,8 @@ import { AreaSelector, type SelectMode } from './AreaSelector';
 import { HotspotLayers, type Days, type LayerStatus, type Period, type Selection } from './HotspotLayers';
 import { StatsView } from './StatsView';
 import { TimelineBar, type TimelinePeriod } from './TimelineBar';
+import { loadOutlook, OUTLOOK_BREAKS, percent, type OutlookFile } from './outlook';
+import { OutlookLayer, outlookColor } from './OutlookLayer';
 
 const DEFAULT_VIEW: MapView = { center: [48.1, 28.3], zoom: 5 };
 const QUICK_DAYS = [1, 2, 7, 30];
@@ -69,6 +73,9 @@ export function ForecastTab({
   const appMap = useRef<AppMap | null>(null);
   const hotspots = useRef<HotspotLayers | null>(null);
   const selector = useRef<AreaSelector | null>(null);
+  const outlookLayer = useRef<OutlookLayer | null>(null);
+  const outlookPopup = useRef<L.Popup | null>(null);
+  const lastOtherPopup = useRef(0);
 
   const [boot, setBoot] = useState<Boot | null>(null);
   const [bootError, setBootError] = useState<string | null>(null);
@@ -92,8 +99,12 @@ export function ForecastTab({
   }, [drawerOpen]);
   const [stats, setStats] = useState<StatsState>({ state: 'idle' });
   const [server, setServer] = useState<ServerStatus | null>(null);
-  const [countryQuery, setCountryQuery] = useState('');
   const [collapsed, setCollapsed] = useState(false);
+  const [outlook, setOutlook] = useState<OutlookFile | null>(null);
+  const [outlookOn, setOutlookOn] = useState(!initial.outlookOff);
+  const [outlookCell, setOutlookCell] = useState<number | null>(null);
+  // Set when the forecast should start playing: the outlook loaded, the tab was opened, or the layer was switched on.
+  const playForecast = useRef(false);
 
   // ---- boot: config + layers + countries, then the map and its imperative helpers ----------------
   useEffect(() => {
@@ -137,12 +148,10 @@ export function ForecastTab({
           onSelect: (s) => {
             setSelection(s);
             hs.setFilter(s); // map shows only points inside the selection
-            setCountryQuery(s.type === 'country' ? s.name : '');
           },
           onClear: () => {
             setSelection(null);
             hs.setFilter(null); // back to everything in the current view
-            setCountryQuery('');
           },
           onModeChange: (mode) => setSelMode(mode),
         });
@@ -157,11 +166,23 @@ export function ForecastTab({
 
         if (initial.country) sel.selectCountry(initial.country, { fit: !initial.view });
         else if (initial.bbox) sel.selectBbox(initial.bbox, { fit: !initial.view });
+
+        // The outlook is optional: if its file is missing the rest of the tab works as before.
+        loadOutlook()
+          .then((data) => {
+            if (cancelled || appMap.current !== m) return;
+            outlookLayer.current = new OutlookLayer(m.map, data);
+            playForecast.current = !initial.outlookOff;
+            setOutlook(data);
+          })
+          .catch(() => undefined);
       })
       .catch((err: Error) => !cancelled && setBootError(err.message));
     return () => {
       cancelled = true;
       selector.current?.destroy();
+      outlookLayer.current?.destroy();
+      outlookLayer.current = null;
       hotspots.current?.destroy();
       appMap.current?.destroy();
       appMap.current = null;
@@ -193,7 +214,23 @@ export function ForecastTab({
     return [a, { key: 'B', from, to, color: cssVar('--period-b'), label: rangeLabel(from, to, locale) }];
   }, [applied, locale]);
 
-  const timelinePeriods = useMemo<TimelinePeriod[]>(() => periods.map((p) => ({ ...p, days: enumerateDays(p.from, p.to) })), [periods]);
+  // With the Forecast layer on, the timeline continues past the observed range into the forecast's future days
+  // (single period only, and only when the range reaches the day before the forecast starts).
+  const forecastExtra = useMemo(() => {
+    if (!outlook || !outlookOn || !applied || applied.compare || !outlook.days.length) return [];
+    if (applied.to < addDays(outlook.days[0], -1)) return [];
+    return outlook.days.filter((day) => day > applied.to);
+  }, [outlook, outlookOn, applied]);
+
+  const timelinePeriods = useMemo<TimelinePeriod[]>(
+    () => periods.map((p, i) => ({ ...p, days: [...enumerateDays(p.from, p.to), ...(i === 0 ? forecastExtra : [])] })),
+    [periods, forecastExtra],
+  );
+  const forecastDays = useMemo(() => new Set(outlook && outlookOn ? outlook.days : []), [outlook, outlookOn]);
+
+  // The forecast shows on the map only while the timeline is on one of its days.
+  const timelineDay = timelineOn ? timelinePeriods[0]?.days[dayIndex] : undefined;
+  const forecastIdx = outlook && outlookOn && timelineDay ? outlook.days.indexOf(timelineDay) : -1;
 
   const days: Days = useMemo(
     () => (timelineOn ? Object.fromEntries(timelinePeriods.map((p) => [p.key, p.days[dayIndex] ?? null])) : null),
@@ -210,6 +247,33 @@ export function ForecastTab({
   useEffect(() => {
     hotspots.current?.setDays(days);
   }, [days]);
+
+  // Opening the tab again replays the forecast (declared first so the effect below sees the flag).
+  useEffect(() => {
+    if (active && outlookOn) playForecast.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
+  // Keep the timeline position valid when forecast days are removed. When the forecast is shown (outlook loaded,
+  // tab opened, layer switched on), start playback at the forecast's first day so the cells change on the map.
+  useEffect(() => {
+    const len = Math.max(0, ...timelinePeriods.map((p) => p.days.length));
+    if (dayIndex > len - 1) setDayIndex(Math.max(0, len - 1));
+    if (!active) {
+      setPlaying(false); // nothing to watch while the other tab is open
+      return;
+    }
+    if (playForecast.current && outlook) {
+      playForecast.current = false;
+      const i = timelinePeriods[0]?.days.indexOf(outlook.days[0]) ?? -1;
+      if (i >= 0) {
+        setTimelineOn(true);
+        setDayIndex(i);
+        setPlaying(!drawerOpen);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timelinePeriods, active]);
 
   // ---- statistics for the selected area ----------------------------------------------------------
   useEffect(() => {
@@ -242,6 +306,76 @@ export function ForecastTab({
     return () => window.clearInterval(id);
   }, [active]);
 
+  // ---- 3-day outlook -------------------------------------------------------------------------------
+  useEffect(() => {
+    const ol = outlookLayer.current;
+    if (!ol || !outlook) return;
+    ol.setVisible(forecastIdx >= 0);
+    if (forecastIdx >= 0) ol.setDay(forecastIdx);
+    else setOutlookCell(null);
+  }, [outlook, forecastIdx]);
+  const forecastShown = forecastIdx >= 0;
+
+  // A map click inside the model grid shows that cell's probabilities; a second click on it closes them.
+  // Clicks that open a hotspot popup (same click, fired first) or happen while an area tool is active are left alone.
+  useEffect(() => {
+    const m = appMap.current?.map;
+    const ol = outlookLayer.current;
+    if (!m || !ol || !forecastShown) return;
+    const onPopup = (e: L.PopupEvent) => {
+      if (e.popup !== outlookPopup.current) lastOtherPopup.current = performance.now();
+    };
+    const onClick = (e: L.LeafletMouseEvent) => {
+      if (selMode || performance.now() - lastOtherPopup.current < 150) return;
+      const k = ol.cellAt(e.latlng);
+      setOutlookCell((prev) => (k == null || prev === k ? null : k));
+    };
+    m.on('popupopen', onPopup);
+    m.on('click', onClick);
+    return () => {
+      m.off('popupopen', onPopup);
+      m.off('click', onClick);
+    };
+  }, [outlook, forecastShown, selMode]);
+
+  useEffect(() => {
+    const m = appMap.current?.map;
+    const ol = outlookLayer.current;
+    const old = outlookPopup.current;
+    outlookPopup.current = null; // before remove(): its 'remove' handler must not clear the new pick
+    old?.remove();
+    ol?.select(outlookCell);
+    if (!m || !ol || !outlook || outlookCell == null) return;
+    const c = outlook.cells[outlookCell];
+    const el = document.createElement('div');
+    const head = el.appendChild(document.createElement('div'));
+    head.className = 'popup-head';
+    head.textContent = t('outlook.cell', { lat: c.lat_center.toFixed(3), lon: c.lon_center.toFixed(3) });
+    const dl = el.appendChild(document.createElement('dl'));
+    dl.className = 'popup-grid';
+    outlook.days.forEach((day, i) => {
+      const dt = dl.appendChild(document.createElement('dt'));
+      dt.textContent = dayChip(day, locale);
+      const dd = dl.appendChild(document.createElement('dd'));
+      dd.textContent = percent(outlook.series.noaa20_detection_probability[i]?.[outlookCell], nf);
+      if (i === forecastIdx) dd.className = 'strong';
+    });
+    const popup = L.popup({ maxWidth: 260, className: 'hs-popup' }).setLatLng([c.lat_center, c.lon_center]).setContent(el);
+    popup.on('remove', () => outlookPopup.current === popup && setOutlookCell(null));
+    outlookPopup.current = popup;
+    popup.openOn(m);
+  }, [outlookCell, outlook, forecastIdx, locale, t, nf]);
+
+  const toggleForecast = (on: boolean) => {
+    setOutlookOn(on);
+    playForecast.current = on;
+  };
+
+  const showOutlookArea = () => {
+    const b = outlookLayer.current?.bounds();
+    if (b) appMap.current?.map.fitBounds(b, { padding: [24, 24], animate: false });
+  };
+
   // ---- URL hash + shared viewport -----------------------------------------------------------------
   const writeHash = useCallback(() => {
     const m = appMap.current?.map;
@@ -255,9 +389,10 @@ export function ForecastTab({
         view: viewOf(m),
         country: selection?.type === 'country' ? selection.iso3 : undefined,
         bbox: selection?.type === 'bbox' ? selection.bbox : undefined,
+        outlookOff: !!outlook && !outlookOn,
       }),
     );
-  }, [active, applied, enabled, selection]);
+  }, [active, applied, enabled, selection, outlook, outlookOn]);
 
   useEffect(writeHash, [writeHash]);
 
@@ -395,23 +530,9 @@ export function ForecastTab({
     return null;
   }, [statuses, enabled, t, nf]);
 
-  // ---- area tools ---------------------------------------------------------------------------------
-  const toolHint =
-    selMode === 'rect'
-      ? t('hint.rect')
-      : selMode === 'country'
-        ? t('hint.country')
-        : selection?.type === 'country'
-          ? t('hint.countryOn', { name: selection.name })
-          : selection?.type === 'bbox'
-            ? t('hint.rectOn')
-            : '';
-
-  const startTool = (kind: 'rect' | 'country') => {
-    if (kind === 'rect') selector.current?.toggleRectangle();
-    else selector.current?.toggleCountry();
-    setDrawerOpen(false); // mobile: get the drawer out of the way so the user can draw on the map
-  };
+  // ---- area selection ----------------------------------------------------------------------------
+  // There are no area tools in the panel any more; a shared link with c:ISO3 or r:w,s,e,n still selects an area
+  // (AreaSelector) and shows its statistics.
 
   const layerNames = useMemo(() => Object.fromEntries((boot?.defs ?? []).map((x) => [x.id, x.name])), [boot]);
   const groups = useMemo(() => {
@@ -454,6 +575,22 @@ export function ForecastTab({
           </div>
         )}
       </div>
+
+      {forecastShown && (
+        <div className="legend outlook-legend" aria-label={t('outlook.legend')}>
+          <button type="button" className="link-btn" onClick={showOutlookArea} title={t('outlook.zoom')}>
+            {t('outlook.layer')} · {t('outlook.area')}
+          </button>
+          <span className="outlook-swatch faint" />
+          <span>{'<1%'}</span>
+          {OUTLOOK_BREAKS.map((b, i) => (
+            <span key={b} className="outlook-legend-item">
+              <span className="outlook-swatch" style={{ background: outlookColor(i + 1) }} />
+              <span>{i + 1 < OUTLOOK_BREAKS.length ? `${nf(b * 100)}–${nf(OUTLOOK_BREAKS[i + 1] * 100)}%` : `≥${nf(b * 100)}%`}</span>
+            </span>
+          ))}
+        </div>
+      )}
 
       <SidePanel
         eyebrow={t('fc.eyebrow')}
@@ -569,40 +706,27 @@ export function ForecastTab({
                     </ul>
                   </li>
                 ))}
+                {outlook && (
+                  <li>
+                    <div className="layer-group">{t('outlook.group')}</div>
+                    <ul>
+                      <li className="layer-item">
+                        <label title={t('outlook.note', { issued: utcStamp(outlook.data_policy.issue_utc, locale), gfs: utcStamp(outlook.data_policy.gfs_run_utc, locale) })}>
+                          <input type="checkbox" checked={outlookOn} onChange={(e) => toggleForecast(e.target.checked)} />
+                          <span className="swatch" style={{ '--c': outlookColor(4) } as CSSProperties} />
+                          <span className="layer-name">{t('outlook.layer')}</span>
+                          <span className="layer-meta">
+                            {shortDate(outlook.days[0], locale)} – {shortDate(outlook.days[outlook.days.length - 1], locale)}
+                          </span>
+                          <span />
+                        </label>
+                      </li>
+                    </ul>
+                  </li>
+                )}
               </ul>
             </section>
 
-            <section className="panel-section">
-              <h2 className="section-title">{t('tools.title')}</h2>
-              <div className="tool-row">
-                <button type="button" className="tool" aria-pressed={selMode === 'rect' || selection?.type === 'bbox'} onClick={() => startTool('rect')}>
-                  <Icon name="rect" size={18} /> {t('tool.rect')}
-                </button>
-                <button type="button" className="tool" aria-pressed={selMode === 'country' || selection?.type === 'country'} onClick={() => startTool('country')}>
-                  <Icon name="flag" size={18} /> {t('tool.country')}
-                </button>
-              </div>
-              <div className="search-row">
-                <input
-                  type="search"
-                  list="fc-country-names"
-                  placeholder={t('tool.search')}
-                  autoComplete="off"
-                  value={countryQuery}
-                  onChange={(e) => {
-                    setCountryQuery(e.target.value);
-                    const c = selector.current?.findByName(e.target.value);
-                    if (c) selector.current?.selectCountry(c.iso3);
-                  }}
-                />
-                <datalist id="fc-country-names">
-                  {boot.countries.map((c) => (
-                    <option key={c.iso3} value={c.name} />
-                  ))}
-                </datalist>
-              </div>
-              {toolHint && <p className="hint">{toolHint}</p>}
-            </section>
 
             {selection && (
               <section className="panel-section stats-panel">
@@ -638,6 +762,8 @@ export function ForecastTab({
         <TimelineBar
           periods={timelinePeriods}
           counts={dayCounts}
+          forecastDays={forecastDays}
+          observedTo={applied?.to}
           on={timelineOn}
           index={dayIndex}
           playing={playing}
@@ -759,3 +885,15 @@ function minDateOf(defs: LayerDef[], enabled: Set<string>): string {
 }
 
 export type { Bbox };
+
+/** "Sun 15 Nov" for an outlook day (UTC). */
+function dayChip(iso: string, locale: string): string {
+  return new Date(iso + 'T00:00:00Z').toLocaleDateString(locale, { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+/** "15 Nov, 00:00 UTC" for an ISO timestamp. */
+function utcStamp(iso: string, locale: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return `${d.toLocaleString(locale, { timeZone: 'UTC', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })} UTC`;
+}

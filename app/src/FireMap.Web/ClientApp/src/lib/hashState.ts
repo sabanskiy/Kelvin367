@@ -1,6 +1,7 @@
 // URL hash = shareable state of the active tab.
 //   #history;a:spain;ds:v2;m:raw;v:unusual;w:2024-06-24;r:-9.5,36,-6,39;@-4.00,40.00,6z  (ds:v2 = Ver. 2 data)
 //   #forecast;d:2026-08-01..2026-08-15;b:2025-08-01..2025-08-15;l:modis,viirs-noaa20;@12.50,42.50,6z;c:ITA
+//   …;o:off (Forecast layer, the team's 3-day model forecast, switched off)
 // Links from the old single-page map have no tab prefix ("#d:…") and open the Forecast tab.
 import type { Bbox } from './geo';
 
@@ -24,6 +25,8 @@ export interface ForecastHash {
   view?: MapView;
   country?: string;
   bbox?: Bbox;
+  /** The Forecast layer (3-day model forecast) is on by default; links only record switching it off. */
+  outlookOff?: true;
 }
 
 export type HistoryMode = 'harm' | 'raw';
@@ -87,6 +90,7 @@ export function parseHash(hash: string): ParsedHash {
       else if ((m = part.match(/^l:(.*)$/))) forecast.layers = m[1].split(',').filter(Boolean);
       else if ((m = part.match(/^c:([A-Z0-9]{3})$/))) forecast.country = m[1];
       else if ((m = part.match(/^r:(.+)$/))) forecast.bbox = parseBbox(m[1]);
+      else if (part === 'o:off') forecast.outlookOff = true;
     } else {
       if ((m = part.match(/^a:([a-z_]+)$/))) history.area = m[1];
       else if (part === 'ds:v2') history.dataset = 'v2';
@@ -101,13 +105,23 @@ export function parseHash(hash: string): ParsedHash {
 
 const viewPart = (v: MapView) => `@${v.center[1].toFixed(2)},${v.center[0].toFixed(2)},${v.zoom}z`;
 
-export function forecastHash(s: { from: string; to: string; compare: Range | null; layers: string[]; view?: MapView; country?: string; bbox?: Bbox }): string {
+export function forecastHash(s: {
+  from: string;
+  to: string;
+  compare: Range | null;
+  layers: string[];
+  view?: MapView;
+  country?: string;
+  bbox?: Bbox;
+  outlookOff?: boolean;
+}): string {
   const parts = ['forecast', `d:${s.from}..${s.to}`];
   if (s.compare) parts.push(`b:${s.compare.from}..${s.compare.to}`);
   parts.push(`l:${s.layers.join(',')}`);
   if (s.view) parts.push(viewPart(s.view));
   if (s.country) parts.push(`c:${s.country}`);
   if (s.bbox) parts.push(`r:${s.bbox.join(',')}`);
+  if (s.outlookOff) parts.push('o:off');
   return '#' + parts.join(';');
 }
 
