@@ -109,7 +109,6 @@ export const en = {
   'csv': 'Download CSV',
   'map.meta': '0.5° grid · {week}',
   'map.cell': 'Fire detections',
-  'map.cell.scaled': 'scaled to the harmonized area total',
   'map.cell.close': 'Close cell details',
   'map.cell.aria': 'Map of weekly fire detections on 0.5° cells',
   'map.noGrid': 'No cell map for this area: calendar and numbers only.',

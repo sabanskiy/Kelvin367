@@ -11,12 +11,15 @@ export function TopBar({
   theme,
   onTheme,
   onAbout,
+  onControls,
 }: {
   tab: Tab;
   onTab: (tab: Tab) => void;
   theme: ThemeChoice;
   onTheme: (t: ThemeChoice) => void;
   onAbout: () => void;
+  /** Mobile only: opens the active tab's controls drawer. */
+  onControls: () => void;
 }) {
   const { t, lang, setLang } = useI18n();
   const tabLink = (id: Tab, label: string, extra?: string) => (
@@ -55,6 +58,9 @@ export function TopBar({
       <nav className="main-tabs" aria-label={t('tab.aria')}>
         {tabLink('history', t('tab.history'))}
         {tabLink('forecast', t('tab.forecast'), t('tab.forecast.tag'))}
+        <button type="button" className="open-controls mobile-only" onClick={onControls}>
+          <Icon name="controls" size={16} /> {t('panel.controls')}
+        </button>
       </nav>
       <div className="header-tools">
         <div className="language" role="group" aria-label={t('lang.aria')}>

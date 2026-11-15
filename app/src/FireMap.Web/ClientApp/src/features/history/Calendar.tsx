@@ -41,6 +41,7 @@ export function Calendar({
   const { t, nf, lang } = useI18n();
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const yearsRef = useRef<HTMLCanvasElement>(null);
   const geom = useRef<Geom | null>(null);
   const [width, setWidth] = useState(0);
   const [cursor, setCursor] = useState<{ year: number; col: number } | null>(null);
@@ -89,9 +90,25 @@ export function Calendar({
         if (cellW >= 9 || i % 3 === 0) ctx.fillText(m, LEFT + wk * cellW, 9);
       });
     const rowOf = new Map(years.map((y, i) => [y, i]));
-    years.forEach((y, r) => {
-      if (y % 2 === 0 || years.length < 14) ctx.fillText(String(y), 2, TOP + r * ROW_H + ROW_H / 2);
-    });
+
+    // Year labels live on a separate canvas pinned over the left edge, so they stay visible
+    // while the week cells scroll horizontally underneath.
+    const yc = yearsRef.current;
+    if (yc) {
+      const yctx = yc.getContext('2d')!;
+      yc.width = LEFT * dpr;
+      yc.height = h * dpr;
+      yc.style.width = LEFT + 'px';
+      yc.style.height = h + 'px';
+      yctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      yctx.clearRect(0, 0, LEFT, h);
+      yctx.font = ctx.font;
+      yctx.fillStyle = muted;
+      yctx.textBaseline = 'middle';
+      years.forEach((y, r) => {
+        if (y % 2 === 0 || years.length < 14) yctx.fillText(String(y), 2, TOP + r * ROW_H + ROW_H / 2);
+      });
+    }
 
     const unusual = view === 'unusual';
     const vmax = quantile(shown.est, 0.99) || 1;
@@ -261,6 +278,7 @@ export function Calendar({
           }}
         />
       </div>
+      <canvas ref={yearsRef} className="cal-years" aria-hidden="true" onMouseEnter={() => !cursor && setTip(null)} />
       {tip && (
         <div className="cal-tip" style={tipStyle} role="presentation">
           {tipLines(tip.i).map((l, k) => (

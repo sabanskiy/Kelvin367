@@ -14,7 +14,7 @@ import { Icon } from '../../components/Icon';
 import { Segmented } from '../../components/Segmented';
 import { MetricCard } from '../../components/MetricCard';
 import { Scrubber } from '../../components/Scrubber';
-import { OpenControlsButton, SidePanel } from '../../components/SidePanel';
+import { SidePanel } from '../../components/SidePanel';
 import { Calendar } from './Calendar';
 import { CellLayer } from './CellLayer';
 import { AREA_GEO, DEFAULT_AREA, loadArea, loadGrid, loadGridMeta, loadIndex, type AreaIndexEntry, type GridIndexEntry } from './data';
@@ -56,12 +56,17 @@ export function HistoryTab({
   initial,
   sharedView,
   onViewChange,
+  drawerOpen,
+  setDrawerOpen,
 }: {
   active: boolean;
   theme: Theme;
   initial: HistoryHash;
   sharedView: () => MapView | null;
   onViewChange: (v: MapView) => void;
+  /** Mobile drawer state; owned by App so the top bar's Controls button can open it. */
+  drawerOpen: boolean;
+  setDrawerOpen: (open: boolean) => void;
 }) {
   const { t, nf, locale } = useI18n();
   const isMobile = useIsMobile();
@@ -91,7 +96,6 @@ export function HistoryTab({
   const [drawing, setDrawing] = useState(false);
   const [drawMsg, setDrawMsg] = useState<{ kind: 'info' | 'warn'; text: string } | null>(null);
   const [cellPick, setCellPick] = useState<{ k: number; latlng: L.LatLng } | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [showAllYears, setShowAllYears] = useState(false);
   const [, setMapTick] = useState(0); // re-render the cell card when the map moves
@@ -102,7 +106,10 @@ export function HistoryTab({
     if (!mapEl.current) return;
     const m = createMap(mapEl.current, initial.view ?? sharedView() ?? DEFAULT_VIEW);
     appMap.current = m;
-    cellLayer.current = new CellLayer(m.map, (k, latlng) => setCellPick({ k, latlng }));
+    cellLayer.current = new CellLayer(m.map, (k, latlng) =>
+      // a second click on the same cell closes its card
+      setCellPick((prev) => (prev?.k === k ? null : { k, latlng })),
+    );
     m.map.pm.setGlobalOptions({ panes: { layerPane: 'selection', vertexPane: 'markerPane', markerPane: 'markerPane' } } as L.PM.GlobalOptions);
     Promise.all([loadIndex(), loadCountries()])
       .then(([idx, c]) => {
@@ -435,10 +442,6 @@ export function HistoryTab({
       <button type="button" className="map-tooltip" style={{ left: p.x, top: p.y } as CSSProperties} onClick={() => setCellPick(null)} aria-label={t('map.cell.close')}>
         <span>{t('map.cell')}</span>
         <strong>{nf(values[cellPick.k], mode === 'raw' ? 0 : 1)}</strong>
-        <small>
-          {weekText} {yearText} · 0.5°
-          {mode === 'harm' && <> · {t('map.cell.scaled')}</>}
-        </small>
       </button>
     );
   }
@@ -628,7 +631,6 @@ export function HistoryTab({
         />
       )}
 
-      <OpenControlsButton onClick={() => setDrawerOpen(true)} />
     </div>
   );
 }

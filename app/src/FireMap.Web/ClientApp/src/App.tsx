@@ -13,11 +13,14 @@ export default function App() {
   const [tab, setTab] = useState<Tab>(initial.tab);
   const [visited, setVisited] = useState<Set<Tab>>(() => new Set([initial.tab]));
   const [aboutOpen, setAboutOpen] = useState(false);
+  // Mobile drawer of the active tab; opened from the top bar, closed on tab switch.
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const { choice, setChoice, theme } = useTheme();
   const view = useRef<MapView | null>(initial.forecast.view ?? initial.history.view ?? null);
 
   const openTab = useCallback((next: Tab) => {
     setTab(next);
+    setDrawerOpen(false);
     setVisited((v) => (v.has(next) ? v : new Set(v).add(next)));
   }, []);
 
@@ -38,7 +41,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <TopBar tab={tab} onTab={openTab} theme={choice} onTheme={setChoice} onAbout={() => setAboutOpen(true)} />
+      <TopBar tab={tab} onTab={openTab} theme={choice} onTheme={setChoice} onAbout={() => setAboutOpen(true)} onControls={() => setDrawerOpen(true)} />
       <main className="map-shell">
         {visited.has('history') && (
           <HistoryTab
@@ -47,6 +50,8 @@ export default function App() {
             initial={initial.tab === 'history' ? initial.history : {}}
             sharedView={sharedView}
             onViewChange={onViewChange}
+            drawerOpen={drawerOpen && tab === 'history'}
+            setDrawerOpen={setDrawerOpen}
           />
         )}
         {visited.has('forecast') && (
@@ -55,6 +60,8 @@ export default function App() {
             initial={initial.tab === 'forecast' ? initial.forecast : {}}
             sharedView={sharedView}
             onViewChange={onViewChange}
+            drawerOpen={drawerOpen && tab === 'forecast'}
+            setDrawerOpen={setDrawerOpen}
           />
         )}
       </main>

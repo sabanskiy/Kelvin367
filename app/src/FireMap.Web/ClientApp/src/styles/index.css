@@ -473,7 +473,7 @@ select {
 .map-tooltip {
   position: absolute;
   z-index: 960;
-  width: 230px;
+  width: max-content;
   padding: 14px 16px;
   color: var(--ink);
   text-align: left;
@@ -495,15 +495,14 @@ select {
   border-bottom: 1px solid var(--border);
   transform: rotate(45deg);
 }
-.map-tooltip span,
-.map-tooltip small {
+.map-tooltip span {
   display: block;
   color: var(--muted);
   font-size: 13px;
 }
 .map-tooltip strong {
   display: block;
-  margin: 6px 0;
+  margin-top: 6px;
   font-size: 24px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
@@ -814,6 +813,17 @@ select {
   padding: 2px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
+}
+/* Year labels pinned over the left edge; the week cells scroll underneath (Calendar.tsx). */
+.cal-years {
+  position: absolute;
+  z-index: 2;
+  top: 2px;
+  left: 0;
+  box-sizing: content-box;
+  padding-left: 2px; /* also cover .calendar-wrap's padding, which cells scroll through */
+  display: block;
+  background: var(--panel);
 }
 .calendar-wrap canvas {
   display: block;
@@ -1683,8 +1693,9 @@ input[type='search'] {
     right: 0;
     left: 0;
     height: 48px;
-    justify-content: center;
-    gap: 44px;
+    padding: 0 12px 0 20px;
+    justify-content: flex-start;
+    gap: 28px;
     background: var(--panel);
     border-bottom: 1px solid var(--border);
   }
@@ -1714,29 +1725,20 @@ input[type='search'] {
     right: 10px;
   }
   .leaflet-bottom {
-    bottom: 148px;
+    bottom: 76px; /* clear of the scrubber */
   }
   .map-status {
     top: 120px;
     max-width: calc(100% - 24px);
   }
   .legend {
-    top: 170px;
-    right: 62px;
-    gap: 6px;
-    font-size: 13px;
-  }
-  .legend-ramp i {
-    width: 12px;
+    display: none;
   }
   .map-meta {
     top: 222px;
     right: 10px;
     max-width: 180px;
     font-size: 12px;
-  }
-  .map-tooltip {
-    width: 210px;
   }
   .map-area-chip {
     position: absolute;
@@ -1798,7 +1800,7 @@ input[type='search'] {
   }
   .scrubber {
     right: 12px;
-    bottom: 84px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
     left: 12px !important;
     gap: 10px;
   }
@@ -1824,21 +1826,20 @@ input[type='search'] {
   .timeline .tl-speed span {
     display: none;
   }
+  /* Sits in the tab row (TopBar), right of History | Forecast. */
   .open-controls {
-    position: absolute;
-    z-index: 1000;
-    bottom: 22px;
-    left: 50%;
-    padding: 0 22px;
+    height: 34px;
+    margin-left: auto;
+    padding: 0 14px;
     display: flex;
     align-items: center;
-    gap: 9px;
+    gap: 7px;
     color: #ffffff;
     background: var(--indigo);
     border-color: var(--indigo);
     border-radius: 999px;
-    box-shadow: var(--shadow);
-    transform: translateX(-50%);
+    font-size: 13px;
+    white-space: nowrap;
   }
 }
 
