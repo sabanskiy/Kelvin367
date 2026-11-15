@@ -39,7 +39,6 @@ A Google Cloud project with the Earth Engine API enabled, Earth Engine registrat
 | --- | --- |
 | `Spain_FIRMS_2012_2025_Colab.ipynb` | Uses a FIRMS MAP_KEY to fetch records and writes `detections/detections_spain.parquet`, `detections/firms_coverage_by_year.csv`, and `detections/firms_download_plan.csv`. Keep the catalogue and coverage report from the same run. [Request a FIRMS MAP_KEY](https://firms.modaps.eosdis.nasa.gov/api/map_key/). |
 | `Spain_Environmental_Features_2012_2025_Colab.ipynb` | Uses Earth Engine and writes per-source features and `features/environmental_features.parquet`. The GFS horizon tables and FWI table are in `features/gfs_physical_qc/`. |
-| `Spain_VIIRS_Aqua_3Day_CatBoost_2012_2025.ipynb` | Reads the prepared tables and coverage report from the same Google Drive folder. Builds labels and separate training inputs for each forecast horizon. |
 
 The default output root in Colab is `MyDrive/spain_firms_2012_2025/`. Keep API keys in Colab Secrets or enter them at the notebook prompt. When publishing derived tables or figures, preserve the dataset names, versions, and credits above. Include all sources and tools used in the project submission. [Space Apps participant terms](https://www.spaceappschallenge.org/legal/).
 
