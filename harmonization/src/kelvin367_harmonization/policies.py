@@ -94,4 +94,3 @@ def harmonize_daily(
         default="no_source",
     )
     return out
-

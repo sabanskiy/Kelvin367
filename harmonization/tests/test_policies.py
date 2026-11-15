@@ -78,4 +78,3 @@ def test_no_available_source_is_nan_and_explicitly_flagged():
     assert np.isnan(got.equal_mix_count_1d)
     assert np.isnan(got.viirs_first_count_1d)
     assert got.viirs_first_flag == "no_source"
-

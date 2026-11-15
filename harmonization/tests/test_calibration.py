@@ -19,4 +19,3 @@ def test_link_uses_geometric_weekly_ratio_separately_for_day_and_night():
     assert np.isclose(got["k_day"], 0.5)
     assert np.isclose(got["k_night"], 0.2)
     assert got["estimator"] == "geometric_mean_of_weekly_ratios"
-

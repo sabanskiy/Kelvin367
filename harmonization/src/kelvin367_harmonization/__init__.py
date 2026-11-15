@@ -3,4 +3,3 @@
 from .policies import Availability, harmonize_daily
 
 __all__ = ["Availability", "harmonize_daily"]
-

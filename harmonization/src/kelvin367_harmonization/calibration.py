@@ -34,4 +34,3 @@ def estimate_link(weekly: pd.DataFrame, *, min_count: int = 3) -> dict:
         "min_count": min_count,
         "estimator": "geometric_mean_of_weekly_ratios",
     }
-
