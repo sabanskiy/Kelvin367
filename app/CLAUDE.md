@@ -83,6 +83,7 @@ Request path:
   - `index.json`, and one `{area}.json` per preset.
   - 0.5° grids as `grid_*.meta.json` + `grid_*.bin.gz`. The binary holds Uint16 counts at `(series*C + cell)*W + week`. Cells are `[iy, ix]` = floor(lat/deg), floor(lon/deg).
   - Grids load on demand. The browser unpacks the gzip itself, so they are served without `Content-Encoding`.
+  - The Area picker lists only presets whose grid (`AREA_GEO[id].grid`) is in `grids.json` (`listedAreas`). Canada and Indonesia have area data but no grid yet, so they are hidden; a link with `a:canada` opens the first listed area. To show them, build `grid_canada`/`grid_indonesia` with spacechallenge `scripts/build_grid_world.py`, import, and set the ids in `AREA_GEO`.
 - **`lib/chain.js`** is spacechallenge's `app/chain.js` with only the UMD wrapper replaced by `export`, so it stays diffable against upstream. Types are in `chain.d.ts`.
   - It runs on the main thread: Spain (249 cells) takes about 80 ms.
 - **Rectangle area:** there is no Draw area button any more; a link with `r:w,s,e,n` still opens a custom rectangle. The app picks the grid with the most cells inside the rectangle, then runs `K367.buildAoiData`, which gives the same view model as a preset.

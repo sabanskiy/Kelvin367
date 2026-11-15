@@ -35,9 +35,20 @@ export const AREA_GEO: Record<string, { grid: string | null; iso3: string[] }> =
   italy: { grid: 'grid_europe', iso3: ['ITA'] },
   chile: { grid: 'grid_south_america', iso3: ['CHL'] },
   south_africa: { grid: 'grid_africa', iso3: ['ZAF'] },
+  // No 0.5° grid yet (the pilot grids cover Europe, Africa and South America only), so these two are not listed.
+  // To show them, build grid_canada / grid_indonesia with the spacechallenge grid script and set the ids here.
   canada: { grid: null, iso3: ['CAN'] },
   indonesia: { grid: null, iso3: ['IDN'] },
 };
+
+/** Areas offered in the picker: only those whose grid is deployed, so the map always has cells to draw. */
+export function listedAreas(aois: AreaIndexEntry[], grids: GridIndexEntry[]): AreaIndexEntry[] {
+  const deployed = new Set(grids.map((g) => g.id));
+  return aois.filter((a) => {
+    const grid = AREA_GEO[a.id]?.grid;
+    return !!grid && deployed.has(grid);
+  });
+}
 
 /** Demo opens on Iberia (spacechallenge decision 6); presets in this order, unknown ids last. */
 export const DEFAULT_AREA = 'iberia';
@@ -61,7 +72,8 @@ export function loadIndex(): Promise<{ aois: AreaIndexEntry[]; grids: GridIndexE
       const i = AREA_ORDER.indexOf(id);
       return i < 0 ? AREA_ORDER.length : i;
     };
-    return { aois: [...idx.aois].sort((a, b) => rank(a.id) - rank(b.id)), grids: grids.grids };
+    const aois = listedAreas(idx.aois, grids.grids).sort((a, b) => rank(a.id) - rank(b.id));
+    return { aois, grids: grids.grids };
   });
   return indexPromise;
 }
