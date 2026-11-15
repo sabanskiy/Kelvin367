@@ -567,7 +567,6 @@ select {
   margin-bottom: 12px;
 }
 .area-select,
-.draw-button,
 .download-button,
 .map-area-chip,
 .open-controls,
@@ -675,19 +674,6 @@ select {
   place-items: center;
   color: var(--ink);
   pointer-events: none; /* clicks go to the select underneath */
-}
-.draw-button {
-  flex: none;
-  padding: 0 14px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--muted);
-  white-space: nowrap;
-}
-.draw-button.active {
-  color: var(--indigo);
-  border-color: var(--indigo);
 }
 .custom-info {
   margin: 0 0 8px;

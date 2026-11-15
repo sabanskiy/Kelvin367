@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project
 
 NASA Space Apps 2026 — "Harmonization of MODIS and VIIRS Hot Spots". This repo is the **web app** (Kelvin367), with two tabs:
-- **History:** weekly calendar of harmonized MODIS/VIIRS counts for preset areas or a drawn rectangle, with a 0.5° cell map. The data comes from the team's spacechallenge pipeline.
+- **History:** weekly calendar of harmonized MODIS/VIIRS counts for preset areas (or a rectangle from a shared link), with a 0.5° cell map. The data comes from the team's spacechallenge pipeline.
 - **Forecast:** live NASA FIRMS detections. Users filter by rectangle or country, get statistics, play a day-by-day timeline, and compare two periods. The team's Outlook model will plug in here later.
 
 The backend is ASP.NET Core API controllers on **.NET 10**. The frontend is a **React 19 + TypeScript + Vite + Tailwind 4 SPA** in `src/FireMap.Web/ClientApp`, built into `wwwroot/` and served by the same app. Maps use Leaflet 1.9.4 + Leaflet-Geoman 2.20.4 (npm) with an OSM base map. The design source is the Figma Make export in `Kelvin367-main/design/fire-history-map`.
@@ -85,7 +85,7 @@ Request path:
   - Grids load on demand. The browser unpacks the gzip itself, so they are served without `Content-Encoding`.
 - **`lib/chain.js`** is spacechallenge's `app/chain.js` with only the UMD wrapper replaced by `export`, so it stays diffable against upstream. Types are in `chain.d.ts`.
   - It runs on the main thread: Spain (249 cells) takes about 80 ms.
-- **Drawn rectangle:** the app picks the grid with the most cells inside the rectangle, then runs `K367.buildAoiData`, which gives the same view model as a preset.
+- **Rectangle area:** there is no Draw area button any more; a link with `r:w,s,e,n` still opens a custom rectangle. The app picks the grid with the most cells inside the rectangle, then runs `K367.buildAoiData`, which gives the same view model as a preset.
   - With too little data it uses region-wide coefficients and shows a warning (spacechallenge thresholds).
 - **Cell map** (`CellLayer.ts`):
   - The raw view shows the cell's own counts.
