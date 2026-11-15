@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kelvin367-harmonization"
+version = "0.1.0"
+description = "Daily MODIS/VIIRS hot-spot harmonization policies"
+requires-python = ">=3.10"
+dependencies = ["numpy", "pandas", "pyarrow"]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-cov"]
+
+[project.scripts]
+kelvin367-harmonize = "kelvin367_harmonization.export:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
