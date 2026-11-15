@@ -67,7 +67,7 @@ export const en = {
   'mode.raw.missing': 'Raw stitched counts are not available for this area.',
   'ds.aria': 'Data version',
   'ds.v1': 'Current data',
-  'ds.v2': 'New algorithm',
+  'ds.v2': 'Ver. 2',
   'ds.v2.note': 'Test data from the new harmonization algorithm. Unit: weekly sum of daily MODIS-equivalent active-cell estimates, so levels are not comparable with the current data (detection counts). Raw mode is not available, and the map shows raw detections from the current grid.',
   'cmp.title': 'Current vs new algorithm',
   'cmp.help': 'The two versions use different units, so these measures do not depend on the unit. Weeks in both: {n}.',
