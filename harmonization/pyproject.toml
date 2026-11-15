@@ -11,6 +11,8 @@ dependencies = ["numpy>=1.24", "pandas>=2.0", "pyarrow>=14"]
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-cov"]
+# strategy 1 (weekly chain): country masks and the GFED5 evaluation
+weekly = ["shapely>=2.0", "h5py"]
 
 [project.scripts]
 kelvin367-harmonize = "kelvin367_harmonization.export:main"
