@@ -18,7 +18,7 @@ Add a row **before** the source is used. Check the licence yourself and write do
 
 | Source | What for | Licence and link | Cited in the submission |
 |---|---|---|---|
-| _none yet_ | | | |
+| Natural Earth Admin 0 – Countries 1:10m, Ukraine point of view (`ne_10m_admin_0_countries_ukr`) | Country boundaries on the map and for statistics (`countries.json`); country masks of the History data (spacechallenge pipeline). Crimea and all occupied territories are part of Ukraine. | Public domain: https://www.naturalearthdata.com/about/terms-of-use/ | Yes |
 
 ## Data policy
 
