@@ -1,4 +1,4 @@
-// The 3-day outlook on the Forecast map: one rectangle per model cell on a shared canvas in the `cells`
+// The model forecast on the Forecast map: one rectangle per model cell on a shared canvas in the `cells`
 // pane, below the live detections (`hotspots`). Cells are not interactive: the hotspot canvas above would
 // swallow their clicks, so the tab finds the cell for a map click with cellAt() (as AreaSelector does).
 import L from 'leaflet';

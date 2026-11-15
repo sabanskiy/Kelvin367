@@ -109,7 +109,8 @@ Port of the earlier vanilla-JS map, same behaviour:
 - **`StatsView.tsx`:** stats and the A-vs-B comparison table.
 - **Date inputs only validate while you edit; nothing loads until Apply/Enter.** Keep it that way: applying on each change made two-ended range edits impossible.
 - **Colours:** layer colours come from `/api/layers`. Period colours are the CSS vars `--period-a` / `--period-b`, read by JS.
-- **Forecast layer** (`outlook.ts`, `OutlookLayer.ts`): the team's CatBoost forecast for central Spain (`ml/`), P(≥1 NOAA-20 detection) per 0.25° cell for 3 UTC days.
+- **Forecast layer** (`outlook.ts`, `OutlookLayer.ts`): the team's CatBoost forecast for Spain (`ml/`), P(≥1 NOAA-20 detection) per 0.25° cell per UTC day (currently 6 days).
+  - The model is validated only on central Spain (`quality.training_grid_bbox_wsen`) and for the first 3 days. Cells outside are flagged `outside_training_grid`; later days are `experimental` in `quality.method_by_day`. Both caveats show in the cell card; experimental days also in the legend and the timeline. No outline of the training area is drawn (it read as a bug).
   - Data: `wwwroot/data/outlook/spain.json`, a byte-for-byte copy of `ml/model/prediction/spain_forecast.json`. For a new run, copy the file again; `outlookData.test.ts` checks its shape.
   - A "Forecast" checkbox in Layers (group "Kelvin367 model"), on by default; `o:off` in the link switches it off.
   - With it on, the timeline continues past the observed range into the forecast's future days (one period only, when the range reaches the day before the forecast). Those days are striped on the track.

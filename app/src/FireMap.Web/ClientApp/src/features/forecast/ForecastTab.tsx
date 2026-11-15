@@ -1,5 +1,5 @@
 // Forecast tab: today's live NASA FIRMS map (port of the original app.js), in the Figma layout, plus the
-// team's 3-day forecast for central Spain (./outlook.ts, ./OutlookLayer.ts): a "Forecast" entry in Layers
+// team's daily forecast for Spain (./outlook.ts, ./OutlookLayer.ts): a "Forecast" entry in Layers
 // adds the forecast's future days to the timeline, and its cells show on the map on those days.
 //
 // Rules carried over from the original app:
@@ -20,7 +20,7 @@ import { AreaSelector, type SelectMode } from './AreaSelector';
 import { HotspotLayers, type Days, type LayerStatus, type Period, type Selection } from './HotspotLayers';
 import { StatsView } from './StatsView';
 import { TimelineBar, type TimelinePeriod } from './TimelineBar';
-import { loadOutlook, OUTLOOK_BREAKS, percent, type OutlookFile } from './outlook';
+import { isExperimentalDay, loadOutlook, OUTLOOK_BREAKS, percent, type OutlookFile } from './outlook';
 import { OutlookLayer, outlookColor } from './OutlookLayer';
 
 const DEFAULT_VIEW: MapView = { center: [48.1, 28.3], zoom: 5 };
@@ -227,6 +227,10 @@ export function ForecastTab({
     [periods, forecastExtra],
   );
   const forecastDays = useMemo(() => new Set(outlook && outlookOn ? outlook.days : []), [outlook, outlookOn]);
+  const experimentalDays = useMemo(
+    () => new Set(outlook && outlookOn ? outlook.days.filter((_, i) => isExperimentalDay(outlook, i)) : []),
+    [outlook, outlookOn],
+  );
 
   // The forecast shows on the map only while the timeline is on one of its days.
   const timelineDay = timelineOn ? timelinePeriods[0]?.days[dayIndex] : undefined;
@@ -306,7 +310,7 @@ export function ForecastTab({
     return () => window.clearInterval(id);
   }, [active]);
 
-  // ---- 3-day outlook -------------------------------------------------------------------------------
+  // ---- model forecast -------------------------------------------------------------------------------
   useEffect(() => {
     const ol = outlookLayer.current;
     if (!ol || !outlook) return;
@@ -353,13 +357,24 @@ export function ForecastTab({
     head.textContent = t('outlook.cell', { lat: c.lat_center.toFixed(3), lon: c.lon_center.toFixed(3) });
     const dl = el.appendChild(document.createElement('dl'));
     dl.className = 'popup-grid';
+    let experimental = false;
     outlook.days.forEach((day, i) => {
       const dt = dl.appendChild(document.createElement('dt'));
-      dt.textContent = dayChip(day, locale);
+      const exp = isExperimentalDay(outlook, i);
+      experimental ||= exp;
+      dt.textContent = dayChip(day, locale) + (exp ? ' *' : '');
       const dd = dl.appendChild(document.createElement('dd'));
       dd.textContent = percent(outlook.series.noaa20_detection_probability[i]?.[outlookCell], nf);
       if (i === forecastIdx) dd.className = 'strong';
     });
+    // The two caveats the team's file states: unvalidated area and days past the trained horizon.
+    const notes = [c.outside_training_grid ? t('outlook.outside') : null, experimental ? t('outlook.experimental') : null];
+    for (const text of notes) {
+      if (!text) continue;
+      const p = el.appendChild(document.createElement('p'));
+      p.className = 'popup-note';
+      p.textContent = text;
+    }
     const popup = L.popup({ maxWidth: 260, className: 'hs-popup' }).setLatLng([c.lat_center, c.lon_center]).setContent(el);
     popup.on('remove', () => outlookPopup.current === popup && setOutlookCell(null));
     outlookPopup.current = popup;
@@ -589,6 +604,7 @@ export function ForecastTab({
               <span>{i + 1 < OUTLOOK_BREAKS.length ? `${nf(b * 100)}–${nf(OUTLOOK_BREAKS[i + 1] * 100)}%` : `≥${nf(b * 100)}%`}</span>
             </span>
           ))}
+          {forecastIdx >= 0 && outlook && isExperimentalDay(outlook, forecastIdx) && <span className="outlook-exp">{t('outlook.expDay')}</span>}
         </div>
       )}
 
@@ -763,6 +779,7 @@ export function ForecastTab({
           periods={timelinePeriods}
           counts={dayCounts}
           forecastDays={forecastDays}
+          experimentalDays={experimentalDays}
           observedTo={applied?.to}
           on={timelineOn}
           index={dayIndex}

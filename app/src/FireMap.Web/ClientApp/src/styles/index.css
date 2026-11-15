@@ -1623,7 +1623,13 @@ input[type='search'] {
   font-weight: 700;
 }
 
-/* ---- Forecast layer (3-day model forecast) ------------------------------------------------------ */
+/* ---- Forecast layer (daily model forecast) ------------------------------------------------------ */
+.popup-note {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.35;
+}
 .outlook-legend {
   margin: 4px 0 8px;
   display: flex;
@@ -1646,6 +1652,10 @@ input[type='search'] {
 }
 .outlook-swatch.faint {
   border: 1px solid var(--border);
+}
+.outlook-exp {
+  color: var(--warm);
+  font-weight: 600;
 }
 .legend.outlook-legend {
   margin: 0;
@@ -1889,6 +1899,21 @@ input[type='search'] {
   }
   .timeline .tl-date {
     align-items: flex-start;
+  }
+  /* Phone: buttons and speed/close on the first row, the date and its detail line full width below
+     (between them they were too narrow and overflowed), then the track. */
+  .timeline .tl-extra {
+    order: 1;
+    margin-left: auto;
+  }
+  .timeline .tl-info {
+    order: 2;
+    flex-basis: 100%;
+    overflow: hidden;
+  }
+  .timeline .tl-count {
+    white-space: normal;
+    line-height: 1.3;
   }
   .timeline .tl-speed span {
     display: none;
