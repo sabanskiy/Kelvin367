@@ -1,5 +1,5 @@
 // URL hash = shareable state of the active tab.
-//   #history;a:spain;m:raw;v:unusual;w:2024-06-24;r:-9.5,36,-6,39;@-4.00,40.00,6z
+//   #history;a:spain;ds:v2;m:raw;v:unusual;w:2024-06-24;r:-9.5,36,-6,39;@-4.00,40.00,6z  (ds:v2 = new-algorithm test data)
 //   #forecast;d:2026-08-01..2026-08-15;b:2025-08-01..2025-08-15;l:modis,viirs-noaa20;@12.50,42.50,6z;c:ITA
 // Links from the old single-page map have no tab prefix ("#d:…") and open the Forecast tab.
 import type { Bbox } from './geo';
@@ -31,6 +31,8 @@ export type CalendarView = 'counts' | 'unusual';
 
 export interface HistoryHash {
   area?: string;
+  /** Only "v2" is written; the current data is the default. */
+  dataset?: 'v2';
   mode?: HistoryMode;
   cal?: CalendarView;
   week?: string;
@@ -87,6 +89,7 @@ export function parseHash(hash: string): ParsedHash {
       else if ((m = part.match(/^r:(.+)$/))) forecast.bbox = parseBbox(m[1]);
     } else {
       if ((m = part.match(/^a:([a-z_]+)$/))) history.area = m[1];
+      else if (part === 'ds:v2') history.dataset = 'v2';
       else if (part === 'm:raw' || part === 'm:harm') history.mode = part.slice(2) as HistoryMode;
       else if (part === 'v:counts' || part === 'v:unusual') history.cal = part.slice(2) as CalendarView;
       else if ((m = part.match(/^w:(.+)$/)) && DATE.test(m[1])) history.week = m[1];
@@ -111,6 +114,7 @@ export function forecastHash(s: { from: string; to: string; compare: Range | nul
 export function historyHash(s: HistoryHash): string {
   const parts = ['history'];
   if (s.area) parts.push(`a:${s.area}`);
+  if (s.dataset) parts.push(`ds:${s.dataset}`);
   if (s.mode) parts.push(`m:${s.mode}`);
   if (s.cal) parts.push(`v:${s.cal}`);
   if (s.week) parts.push(`w:${s.week}`);

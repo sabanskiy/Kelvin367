@@ -48,6 +48,13 @@ describe('parseHash', () => {
     expect(p.history).toEqual(s);
   });
 
+  it('round-trips the new-algorithm dataset', () => {
+    const s = { area: 'spain', dataset: 'v2' as const, week: '2025-08-11' };
+    expect(historyHash(s)).toBe('#history;a:spain;ds:v2;w:2025-08-11');
+    expect(parseHash(historyHash(s)).history).toEqual(s);
+    expect(parseHash('#history;a:spain;ds:v9').history).toEqual({ area: 'spain' });
+  });
+
   it('ignores malformed parts', () => {
     const p = parseHash('#history;a:Spain!;w:2024-13;r:1,2,x,4;m:other');
     expect(p.history).toEqual({});

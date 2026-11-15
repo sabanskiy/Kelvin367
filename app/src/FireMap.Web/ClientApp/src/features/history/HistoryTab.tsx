@@ -17,7 +17,8 @@ import { Scrubber } from '../../components/Scrubber';
 import { SidePanel } from '../../components/SidePanel';
 import { Calendar } from './Calendar';
 import { CellLayer } from './CellLayer';
-import { AREA_GEO, DEFAULT_AREA, loadArea, loadGrid, loadGridMeta, loadIndex, type AreaIndexEntry, type GridIndexEntry } from './data';
+import { AREA_GEO, DEFAULT_AREA, loadArea, loadGrid, loadGridMeta, loadIndex, loadV2Index, type AreaIndexEntry, type Dataset, type GridIndexEntry, type V2Index } from './data';
+import { compareDatasets, type Comparison } from './compare';
 import {
   cellKm2,
   cellValues,
@@ -38,6 +39,8 @@ import {
 } from './model';
 
 const DEFAULT_VIEW: MapView = { center: [40, -4], zoom: 5 };
+/** The current/new-algorithm switch is for the team only: shown with ?exp=v2 or a shared link with ds:v2. */
+const EXPERIMENT = new URLSearchParams(location.search).get('exp') === 'v2';
 const SELECTED_STYLE: L.PathOptions = { color: '#533afd', weight: 2, fill: false, dashArray: '6 4' };
 
 interface Custom {
@@ -98,6 +101,13 @@ export function HistoryTab({
   const [showAllYears, setShowAllYears] = useState(false);
   const [, setMapTick] = useState(0); // re-render the cell card when the map moves
   const wantWeek = useRef<string | undefined>(initial.week);
+  const showExp = EXPERIMENT || initial.dataset === 'v2';
+  const [v2Index, setV2Index] = useState<V2Index | null>(null);
+  const [dataset, setDataset] = useState<Dataset>(initial.dataset ?? 'v1');
+  const [comparison, setComparison] = useState<Comparison | null>(null);
+  const hasV2 = !custom && !!v2Index?.aois.some((a) => a.id === areaId);
+  /** Dataset actually shown: drawn areas and areas without new data always use the current data. */
+  const ds: Dataset = hasV2 && dataset === 'v2' ? 'v2' : 'v1';
 
   // ---- boot ----------------------------------------------------------------------------------------
   useEffect(() => {
@@ -116,6 +126,7 @@ export function HistoryTab({
         setCountries(c);
       })
       .catch((e: Error) => setError(t('err.load', { msg: e.message })));
+    if (showExp) void loadV2Index().then(setV2Index);
     return () => {
       cellLayer.current?.destroy();
       m.destroy();
@@ -126,12 +137,12 @@ export function HistoryTab({
 
   // ---- preset area -----------------------------------------------------------------------------------
   useEffect(() => {
-    if (custom || bootPending || !countries || areas.length === 0) return;
+    if (custom || bootPending || !countries || areas.length === 0 || (showExp && !v2Index)) return;
     const id = areas.some((a) => a.id === areaId) ? areaId : areas[0].id;
     let cancelled = false;
     setError(null);
     setCellPick(null);
-    loadArea(id)
+    loadArea(id, ds)
       .then(async (raw) => {
         if (cancelled) return;
         const d = prepare(raw);
@@ -166,7 +177,27 @@ export function HistoryTab({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [areaId, areas, countries, custom === null, bootPending]);
+  }, [areaId, areas, countries, custom === null, bootPending, v2Index, ds]);
+
+  // Switching the dataset keeps the week and the map view.
+  const switchDataset = (next: Dataset) => {
+    if (data) wantWeek.current = data.weeks[week];
+    fitNext.current = false;
+    setDataset(next);
+  };
+
+  // Unit-free comparison of the two datasets for the selected preset.
+  useEffect(() => {
+    setComparison(null);
+    if (!hasV2) return;
+    let cancelled = false;
+    Promise.all([loadArea(areaId, 'v1'), loadArea(areaId, 'v2')])
+      .then(([a, b]) => !cancelled && setComparison(compareDatasets(prepare(a), prepare(b))))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [areaId, hasV2]);
 
   const showOutline = (layer: L.GeoJSON | L.Rectangle | null) => {
     outline.current?.remove();
@@ -329,11 +360,13 @@ export function HistoryTab({
   }, [week]);
 
   // ---- map cells for the selected week -------------------------------------------------------------------
-  const values = useMemo(() => (data && grid && cellView ? cellValues(data, grid, cellView, week, mode) : null), [data, grid, cellView, week, mode]);
+  // The new algorithm's data is in another unit than the grid, so its map shows the grid's raw detections.
+  const cellMode: HistoryMode = ds === 'v2' ? 'raw' : mode;
+  const values = useMemo(() => (data && grid && cellView ? cellValues(data, grid, cellView, week, cellMode) : null), [data, grid, cellView, week, cellMode]);
   useEffect(() => {
     if (!data || !grid || !cellView || !values) return;
-    cellLayer.current?.setValues(values, cellVmax(data, grid, cellView, mode));
-  }, [values, data, grid, cellView, mode]);
+    cellLayer.current?.setValues(values, cellVmax(data, grid, cellView, cellMode));
+  }, [values, data, grid, cellView, cellMode]);
   useEffect(() => cellLayer.current?.select(cellPick?.k ?? null), [cellPick, cellView]);
 
   // ---- URL hash + shared viewport ------------------------------------------------------------------------
@@ -343,6 +376,7 @@ export function HistoryTab({
     replaceHash(
       historyHash({
         area: custom ? undefined : areaId,
+        dataset: ds === 'v2' ? 'v2' : undefined,
         mode,
         cal: calView,
         week: data.weeks[week],
@@ -350,7 +384,7 @@ export function HistoryTab({
         view: viewOf(m),
       }),
     );
-  }, [active, data, custom, areaId, mode, calView, week]);
+  }, [active, data, custom, areaId, ds, mode, calView, week]);
 
   useEffect(writeHash, [writeHash]);
 
@@ -380,10 +414,10 @@ export function HistoryTab({
   // ---- actions ------------------------------------------------------------------------------------------
   const downloadCsv = () => {
     if (!data) return;
-    const blob = new Blob([toCsv(data, mode)], { type: 'text/csv' });
+    const blob = new Blob([toCsv(data, mode, ds === 'v2' ? 'modis_equivalent_active_cells' : undefined)], { type: 'text/csv' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `kelvin367_${custom ? 'custom' : data.id}_${mode === 'raw' ? 'raw' : 'harm'}.csv`;
+    a.download = `kelvin367_${custom ? 'custom' : data.id}_${mode === 'raw' ? 'raw' : 'harm'}${ds === 'v2' ? '_v2' : ''}.csv`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
@@ -437,7 +471,7 @@ export function HistoryTab({
     cellCard = (
       <button type="button" className="map-tooltip" style={{ left: p.x, top: p.y } as CSSProperties} onClick={() => setCellPick(null)} aria-label={t('map.cell.close')}>
         <span>{t('map.cell')}</span>
-        <strong>{nf(values[cellPick.k], mode === 'raw' ? 0 : 1)}</strong>
+        <strong>{nf(values[cellPick.k], cellMode === 'raw' ? 0 : 1)}</strong>
       </button>
     );
   }
@@ -479,7 +513,7 @@ export function HistoryTab({
         </div>
         <span>{t('legend.more')}</span>
       </div>
-      <div className="map-meta">{grid ? t('map.meta', { week: `${weekText} ${yearText}` }) : data ? t('map.noGrid') : ''}</div>
+      <div className="map-meta">{grid ? t(ds === 'v2' ? 'map.meta.raw' : 'map.meta', { week: `${weekText} ${yearText}` }) : data ? t('map.noGrid') : ''}</div>
 
       <SidePanel
         eyebrow={t('hist.eyebrow')}
@@ -516,6 +550,22 @@ export function HistoryTab({
         )}
         {drawMsg && <p className={`hint ${drawMsg.kind === 'warn' ? 'warn' : ''}`}>{drawMsg.text}</p>}
 
+        {hasV2 && (
+          <section className="ds-section">
+            <Segmented
+              value={ds}
+              onChange={switchDataset}
+              label={t('ds.aria')}
+              className="compact"
+              options={[
+                { value: 'v1', label: t('ds.v1') },
+                { value: 'v2', label: t('ds.v2') },
+              ]}
+            />
+            {ds === 'v2' && <p className="hint warn">{t('ds.v2.note')}</p>}
+          </section>
+        )}
+
         <section className="mode-section">
           <Segmented
             value={mode}
@@ -548,6 +598,34 @@ export function HistoryTab({
               />
             )}
             <MetricCard label={t('metric.weeks')} value={nf(data.weeks.length)} detail={t('metric.weeks.detail', { from: data.weeks[0], to: data.weeks[data.weeks.length - 1] })} />
+          </div>
+        )}
+
+        {hasV2 && comparison && (
+          <div className="compare ds-compare">
+            <h3>{t('cmp.title')}</h3>
+            <p className="hint">{t('cmp.help', { n: nf(comparison.weeks) })}</p>
+            <div className="compare-row">
+              <span>{t('cmp.rank')}</span>
+              <strong>{comparison.rank == null ? '–' : nf(comparison.rank, 2)}</strong>
+            </div>
+            <div className="compare-row">
+              <span>{t('cmp.scale')}</span>
+              <strong>{comparison.scale == null ? '–' : `×${nf(comparison.scale, 2)}`}</strong>
+            </div>
+            <div className="compare-row">
+              <span>{t('cmp.unusual')}</span>
+              <strong>{t('cmp.unusual.value', { a: comparison.unusual.current, b: comparison.unusual.next, both: comparison.unusual.both })}</strong>
+            </div>
+            <div className="compare-row">
+              <span>{t('cmp.onModis')}</span>
+              <strong>
+                {t('cmp.pair', {
+                  a: comparison.onModis.current == null ? '–' : nf(comparison.onModis.current, 2),
+                  b: comparison.onModis.next == null ? '–' : nf(comparison.onModis.next, 2),
+                })}
+              </strong>
+            </div>
           </div>
         )}
 

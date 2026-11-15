@@ -86,6 +86,10 @@ export interface AoiData {
   quality: { links: Link[]; platforms: Platform[]; known_gaps: KnownGap[] };
   data_policy?: { lag_days: number; as_of: string; reason: string };
   warnings?: string[];
+  /** New-algorithm test data (calendar/v2) only: week indices still subject to revision. */
+  provisional_weeks?: number[];
+  /** New-algorithm test data only: week indices outside the range the model was fitted on. */
+  out_of_domain_weeks?: number[];
 }
 
 export interface LatestVsNormal {

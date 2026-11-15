@@ -1,0 +1,12 @@
+{
+  "about": "Test data from the new harmonization algorithm, shown beside the current data with ?exp=v2. Not imported with tools/ImportCalendarData.cs; checked by src/features/history/v2data.test.ts.",
+  "unit": "weekly sum of daily MODIS-equivalent active-cell estimates",
+  "aois": [
+    {
+      "id": "spain",
+      "from": "2000-10-30",
+      "to": "2026-11-09",
+      "source": "Kelvin367 commit da5f1cb (branch feat/spain-harmonized-export), as_of 2026-11-14"
+    }
+  ]
+}
