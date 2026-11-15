@@ -40,9 +40,16 @@ function corr(a: (number | null)[], b: (number | null)[]): number {
 }
 
 describe('imported Europe grid', () => {
-  it('holds no cell in Ukraine (Ukraine POV boundaries)', () => {
-    expect(cellsIn('UKR')).toEqual([]);
+  it('has the expected binary size', () => {
     expect(bin.byteLength).toBe(grid.S * grid.C * grid.W * 2);
+  });
+
+  it('includes Crimea in Ukraine (hard requirement, CLAUDE.md)', () => {
+    expect(cellsIn('UKR').length).toBeGreaterThan(0);
+    const have = new Set(meta.cells.map(([iy, ix]) => `${iy},${ix}`));
+    for (const [city, lon, lat] of [['Simferopol', 34.1, 44.95], ['Sevastopol', 33.52, 44.6], ['Kerch', 36.47, 45.36]] as const) {
+      expect(have.has(`${Math.floor(lat / meta.deg)},${Math.floor(lon / meta.deg)}`), city).toBe(true);
+    }
   });
 });
 
@@ -93,5 +100,19 @@ describe('chain.js on Spain grid cells vs spain.json', () => {
     console.info(`harm.est total ratio ${(sum(a) / sum(b)).toFixed(3)}, r = ${corr(a, b).toFixed(4)}`);
     expect(Math.abs(sum(a) / sum(b) - 1)).toBeLessThan(0.1);
     expect(corr(a, b)).toBeGreaterThan(0.98);
+  });
+});
+
+describe('Ukraine grid cells vs ukraine.json (same Ukraine POV mask, Crimea included)', () => {
+  const ukraine = json<AoiData>('calendar/ukraine.json');
+  it('sees the same raw MODIS record', () => {
+    // The grid holds only masked detections, so Ukraine's cells (border cells included) carry Ukraine's record.
+    const d = K367.buildAoiData(grid, cellsOf('UKR', []), 'Ukraine (grid)');
+    const n = Math.min(d.weeks.length, ukraine.weeks.length);
+    expect(d.weeks[0]).toBe(ukraine.weeks[0]);
+    const a = d.series.modis.slice(0, n), b = ukraine.series.modis.slice(0, n);
+    console.info(`ukraine modis total ratio ${(sum(a) / sum(b)).toFixed(3)}, r = ${corr(a, b).toFixed(4)}`);
+    expect(Math.abs(sum(a) / sum(b) - 1)).toBeLessThan(0.05);
+    expect(corr(a, b)).toBeGreaterThan(0.99);
   });
 });

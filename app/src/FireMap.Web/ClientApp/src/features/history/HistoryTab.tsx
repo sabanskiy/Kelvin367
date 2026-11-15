@@ -38,8 +38,6 @@ import {
 } from './model';
 
 const DEFAULT_VIEW: MapView = { center: [40, -4], zoom: 5 };
-/** Never offered, even if a data drop still contains it: Ukraine data must first include Crimea (CLAUDE.md). */
-const EXCLUDED_AREAS = new Set(['ukraine']);
 const SELECTED_STYLE: L.PathOptions = { color: '#533afd', weight: 2, fill: false, dashArray: '6 4' };
 
 interface Custom {
@@ -79,7 +77,7 @@ export function HistoryTab({
   const [areas, setAreas] = useState<AreaIndexEntry[]>([]);
   const [grids, setGrids] = useState<GridIndexEntry[]>([]);
   const [countries, setCountries] = useState<CountryCollection | null>(null);
-  const [areaId, setAreaId] = useState(initial.area && !EXCLUDED_AREAS.has(initial.area) ? initial.area : DEFAULT_AREA);
+  const [areaId, setAreaId] = useState(initial.area ?? DEFAULT_AREA);
   const [custom, setCustom] = useState<Custom | null>(null);
   // A shared link with a custom rectangle: hold the preset back until that area is built (or fails),
   // so the preset does not take the link's week first.
@@ -113,7 +111,7 @@ export function HistoryTab({
     m.map.pm.setGlobalOptions({ panes: { layerPane: 'selection', vertexPane: 'markerPane', markerPane: 'markerPane' } } as L.PM.GlobalOptions);
     Promise.all([loadIndex(), loadCountries()])
       .then(([idx, c]) => {
-        setAreas(idx.aois.filter((a) => !EXCLUDED_AREAS.has(a.id)));
+        setAreas(idx.aois);
         setGrids(idx.grids);
         setCountries(c);
       })
@@ -200,7 +198,6 @@ export function HistoryTab({
       if (!countries) return;
       setDrawMsg(null);
       setCellPick(null);
-      const ukr = countries.features.find((f) => f.properties.iso3 === 'UKR');
       // Pick the grid with the most cells whose centre is inside the rectangle.
       let best: { id: string; name: string; cells: number[] } | null = null;
       let touched = 0;
@@ -210,7 +207,6 @@ export function HistoryTab({
         meta.cells.forEach(([iy, ix], c) => {
           const lat = (iy + 0.5) * meta.deg, lon = (ix + 0.5) * meta.deg;
           if (lon < bbox[0] || lon > bbox[2] || lat < bbox[1] || lat > bbox[3]) return;
-          if (ukr && featureContains(ukr, lon, lat)) return; // safety net: Ukraine stays out (see EXCLUDED_AREAS)
           cells.push(c);
         });
         if (cells.length) touched++;
@@ -519,7 +515,6 @@ export function HistoryTab({
           </div>
         )}
         {drawMsg && <p className={`hint ${drawMsg.kind === 'warn' ? 'warn' : ''}`}>{drawMsg.text}</p>}
-        <p className="hint muted-note">{t('hist.ukraine')}</p>
 
         <section className="mode-section">
           <Segmented

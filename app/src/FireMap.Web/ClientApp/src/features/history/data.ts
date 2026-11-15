@@ -26,6 +26,7 @@ export interface GridIndexEntry {
  * (Natural Earth, Ukraine POV — the same file the map uses) are drawn for the preset.
  */
 export const AREA_GEO: Record<string, { grid: string | null; iso3: string[]; flag: string }> = {
+  ukraine: { grid: 'grid_europe', iso3: ['UKR'], flag: 'UA' },
   iberia: { grid: 'grid_europe', iso3: ['ESP', 'PRT'], flag: 'IB' },
   spain: { grid: 'grid_europe', iso3: ['ESP'], flag: 'ES' },
   portugal: { grid: 'grid_europe', iso3: ['PRT'], flag: 'PT' },
@@ -39,7 +40,7 @@ export const AREA_GEO: Record<string, { grid: string | null; iso3: string[]; fla
 
 /** Demo opens on Iberia (spacechallenge decision 6); presets in this order, unknown ids last. */
 export const DEFAULT_AREA = 'iberia';
-export const AREA_ORDER = ['iberia', 'spain', 'portugal', 'greece', 'italy', 'chile', 'south_africa', 'canada', 'indonesia'];
+export const AREA_ORDER = ['iberia', 'ukraine', 'spain', 'portugal', 'greece', 'italy', 'chile', 'south_africa', 'canada', 'indonesia'];
 
 // Data files change when the data are rebuilt: always revalidate.
 const getJson = async <T>(url: string): Promise<T> => {

@@ -22,7 +22,6 @@ export const uk: Record<MessageKey, string> = {
   'about.history': 'Історія: тижневий календар палення для області, сирий або гармонізований, з незвичними тижнями.',
   'about.forecast': 'Прогноз: живу карту детекцій NASA FIRMS. Сюди буде додано прогноз моделі на вибраний майбутній тиждень.',
   'about.detections': 'Це супутникові детекції теплових аномалій, а не площа вигорання і не зареєстровані пожежі.',
-  'about.ukraine': 'Україна тимчасово недоступна в Історії: її календарні дані треба спершу перебудувати з межами, у яких Крим є частиною України.',
   'about.project': 'NASA Space Apps Challenge 2026 · Harmonization of MODIS and VIIRS Hot Spots. Незалежний проєкт, не схвалений NASA.',
   'about.ackTitle': 'Подяка за дані',
   'about.close': 'Закрити',
@@ -116,7 +115,6 @@ export const uk: Record<MessageKey, string> = {
   'scrub.play': 'Відтворити',
   'scrub.pause': 'Пауза',
   'scrub.aria': 'Тиждень',
-  'hist.ukraine': 'Україну тимчасово приховано, доки її дані не враховуватимуть Крим як частину України.',
 
   // ---- forecast (live FIRMS map) -------------------------------------------------------------
   'fc.eyebrow': 'NASA FIRMS · майже наживо',

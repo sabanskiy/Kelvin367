@@ -40,7 +40,6 @@ export function AboutSheet({ open, onClose }: { open: boolean; onClose: () => vo
           <li>{t('about.history')}</li>
           <li>{t('about.forecast')}</li>
           <li>{t('about.detections')}</li>
-          <li>{t('about.ukraine')}</li>
         </ul>
         <h3>{t('about.ackTitle')}</h3>
         <p className="ack" lang="en">

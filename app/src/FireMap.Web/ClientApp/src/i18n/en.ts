@@ -22,7 +22,6 @@ export const en = {
   'about.history': 'History: the weekly burning calendar for an area, raw or harmonized, with unusual weeks.',
   'about.forecast': 'Forecast: the live map of NASA FIRMS detections. A model forecast for a chosen future week will be added here.',
   'about.detections': 'Counts are satellite detections of heat anomalies, not burned area and not reported fires.',
-  'about.ukraine': 'Ukraine is temporarily not available in History: its calendar data must first be rebuilt with boundaries in which Crimea is part of Ukraine.',
   'about.project': 'NASA Space Apps Challenge 2026 · Harmonization of MODIS and VIIRS Hot Spots. Independent project, not endorsed by NASA.',
   'about.ackTitle': 'Data acknowledgement',
   'about.close': 'Close',
@@ -116,7 +115,6 @@ export const en = {
   'scrub.play': 'Play timeline',
   'scrub.pause': 'Pause timeline',
   'scrub.aria': 'Week',
-  'hist.ukraine': 'Ukraine is temporarily hidden until its data treats Crimea as part of Ukraine.',
 
   // ---- forecast (live FIRMS map) -------------------------------------------------------------
   'fc.eyebrow': 'NASA FIRMS · near real time',
