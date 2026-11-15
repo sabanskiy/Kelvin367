@@ -36,3 +36,14 @@ The complete Spain Parquet is intentionally not committed. Publish it as a GitHu
 ## Provenance
 
 The policy semantics are ported from the team's `spacechallenge` pipeline. VIIRS-first is the source-selection policy proposed by Andriy; calibration links, masks and export QA remain separate pipeline concerns. Project code is Apache-2.0; NASA FIRMS data retain their own terms described in the repository `DATA.md`.
+
+## Strategy 1: weekly calibration chain
+
+The weekly chain that produces the History data is in `src/kelvin367_harmonization/weekly/`, with its scripts in `scripts/weekly/` and tests in
+`tests/weekly/`. See [RESULTS.md](RESULTS.md) for which script reproduces which result and which raw data it needs.
+
+```bash
+cd harmonization
+python -m pip install -e '.[dev,weekly]'
+pytest
+```
