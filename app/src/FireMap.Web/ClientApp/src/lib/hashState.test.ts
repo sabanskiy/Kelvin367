@@ -34,6 +34,13 @@ describe('parseHash', () => {
     expect(p.forecast).toEqual({ from: s.from, to: s.to, layers: s.layers, view: s.view, bbox: s.bbox });
   });
 
+  it('round-trips the outlook switch and day', () => {
+    const s = { from: '2026-11-14', to: '2026-11-15', compare: null, layers: ['modis'], outlookOff: true, outlookDay: '2026-11-16' };
+    expect(forecastHash(s)).toBe('#forecast;d:2026-11-14..2026-11-15;l:modis;o:off;od:2026-11-16');
+    expect(parseHash(forecastHash(s)).forecast).toEqual({ from: s.from, to: s.to, layers: s.layers, outlookOff: true, outlookDay: '2026-11-16' });
+    expect(parseHash('#forecast;o:on;od:2026-13').forecast).toEqual({});
+  });
+
   it('round-trips the History state', () => {
     const s = {
       area: 'south_africa',

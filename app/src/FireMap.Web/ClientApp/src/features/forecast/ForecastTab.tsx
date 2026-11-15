@@ -1,10 +1,11 @@
-// Forecast tab: today's live NASA FIRMS map (port of the original app.js), in the Figma layout.
-// A model forecast will plug in through ./outlook.ts; until then this is the observation map.
+// Forecast tab: today's live NASA FIRMS map (port of the original app.js), in the Figma layout, plus the
+// team's 3-day outlook for central Spain (./outlook.ts, ./OutlookLayer.ts) drawn under the detections.
 //
 // Rules carried over from the original app:
 //  - Date inputs only validate while you edit; nothing loads until Apply/Enter (two-ended edits stay possible).
 //  - Only one area filter at a time; pressing a tool button again removes its filter.
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import L from 'leaflet';
 import { api, type AppConfig, type LayerDef, type ServerStatus, type StatsResult } from '../../lib/api';
 import { addDays, dayDiff, enumerateDays, rangeLabel, shiftYears } from '../../lib/dates';
 import { loadCountries, type Bbox } from '../../lib/geo';
@@ -18,6 +19,8 @@ import { AreaSelector, type SelectMode } from './AreaSelector';
 import { HotspotLayers, type Days, type LayerStatus, type Period, type Selection } from './HotspotLayers';
 import { StatsView } from './StatsView';
 import { TimelineBar, type TimelinePeriod } from './TimelineBar';
+import { loadOutlook, OUTLOOK_BREAKS, percent, type OutlookFile } from './outlook';
+import { OutlookLayer, outlookColor } from './OutlookLayer';
 
 const DEFAULT_VIEW: MapView = { center: [48.1, 28.3], zoom: 5 };
 const QUICK_DAYS = [1, 2, 7, 30];
@@ -69,6 +72,9 @@ export function ForecastTab({
   const appMap = useRef<AppMap | null>(null);
   const hotspots = useRef<HotspotLayers | null>(null);
   const selector = useRef<AreaSelector | null>(null);
+  const outlookLayer = useRef<OutlookLayer | null>(null);
+  const outlookPopup = useRef<L.Popup | null>(null);
+  const lastOtherPopup = useRef(0);
 
   const [boot, setBoot] = useState<Boot | null>(null);
   const [bootError, setBootError] = useState<string | null>(null);
@@ -94,6 +100,10 @@ export function ForecastTab({
   const [server, setServer] = useState<ServerStatus | null>(null);
   const [countryQuery, setCountryQuery] = useState('');
   const [collapsed, setCollapsed] = useState(false);
+  const [outlook, setOutlook] = useState<OutlookFile | null>(null);
+  const [outlookOn, setOutlookOn] = useState(!initial.outlookOff);
+  const [outlookDay, setOutlookDay] = useState(0);
+  const [outlookCell, setOutlookCell] = useState<number | null>(null);
 
   // ---- boot: config + layers + countries, then the map and its imperative helpers ----------------
   useEffect(() => {
@@ -157,11 +167,24 @@ export function ForecastTab({
 
         if (initial.country) sel.selectCountry(initial.country, { fit: !initial.view });
         else if (initial.bbox) sel.selectBbox(initial.bbox, { fit: !initial.view });
+
+        // The outlook is optional: if its file is missing the rest of the tab works as before.
+        loadOutlook()
+          .then((data) => {
+            if (cancelled || appMap.current !== m) return;
+            outlookLayer.current = new OutlookLayer(m.map, data);
+            const i = initial.outlookDay ? data.days.indexOf(initial.outlookDay) : 0;
+            setOutlookDay(Math.max(0, i));
+            setOutlook(data);
+          })
+          .catch(() => undefined);
       })
       .catch((err: Error) => !cancelled && setBootError(err.message));
     return () => {
       cancelled = true;
       selector.current?.destroy();
+      outlookLayer.current?.destroy();
+      outlookLayer.current = null;
       hotspots.current?.destroy();
       appMap.current?.destroy();
       appMap.current = null;
@@ -242,6 +265,71 @@ export function ForecastTab({
     return () => window.clearInterval(id);
   }, [active]);
 
+  // ---- 3-day outlook -------------------------------------------------------------------------------
+  useEffect(() => {
+    const ol = outlookLayer.current;
+    if (!ol || !outlook) return;
+    ol.setVisible(outlookOn);
+    ol.setDay(outlookDay);
+    if (!outlookOn) setOutlookCell(null);
+  }, [outlook, outlookOn, outlookDay]);
+
+  // A map click inside the model grid shows that cell's probabilities; a second click on it closes them.
+  // Clicks that open a hotspot popup (same click, fired first) or happen while an area tool is active are left alone.
+  useEffect(() => {
+    const m = appMap.current?.map;
+    const ol = outlookLayer.current;
+    if (!m || !ol || !outlookOn) return;
+    const onPopup = (e: L.PopupEvent) => {
+      if (e.popup !== outlookPopup.current) lastOtherPopup.current = performance.now();
+    };
+    const onClick = (e: L.LeafletMouseEvent) => {
+      if (selMode || performance.now() - lastOtherPopup.current < 150) return;
+      const k = ol.cellAt(e.latlng);
+      setOutlookCell((prev) => (k == null || prev === k ? null : k));
+    };
+    m.on('popupopen', onPopup);
+    m.on('click', onClick);
+    return () => {
+      m.off('popupopen', onPopup);
+      m.off('click', onClick);
+    };
+  }, [outlook, outlookOn, selMode]);
+
+  useEffect(() => {
+    const m = appMap.current?.map;
+    const ol = outlookLayer.current;
+    const old = outlookPopup.current;
+    outlookPopup.current = null; // before remove(): its 'remove' handler must not clear the new pick
+    old?.remove();
+    ol?.select(outlookCell);
+    if (!m || !ol || !outlook || outlookCell == null) return;
+    const c = outlook.cells[outlookCell];
+    const el = document.createElement('div');
+    const head = el.appendChild(document.createElement('div'));
+    head.className = 'popup-head';
+    head.textContent = t('outlook.cell', { lat: c.lat_center.toFixed(3), lon: c.lon_center.toFixed(3) });
+    const dl = el.appendChild(document.createElement('dl'));
+    dl.className = 'popup-grid';
+    outlook.days.forEach((day, i) => {
+      const dt = dl.appendChild(document.createElement('dt'));
+      dt.textContent = dayChip(day, locale);
+      const dd = dl.appendChild(document.createElement('dd'));
+      dd.textContent = percent(outlook.series.noaa20_detection_probability[i]?.[outlookCell], nf);
+      if (i === outlookDay) dd.className = 'strong';
+    });
+    const popup = L.popup({ maxWidth: 260, className: 'hs-popup' }).setLatLng([c.lat_center, c.lon_center]).setContent(el);
+    popup.on('remove', () => outlookPopup.current === popup && setOutlookCell(null));
+    outlookPopup.current = popup;
+    popup.openOn(m);
+  }, [outlookCell, outlook, outlookDay, locale, t, nf]);
+
+  const showOutlookArea = () => {
+    const b = outlookLayer.current?.bounds();
+    if (b) appMap.current?.map.fitBounds(b, { padding: [24, 24], animate: false });
+    setDrawerOpen(false);
+  };
+
   // ---- URL hash + shared viewport -----------------------------------------------------------------
   const writeHash = useCallback(() => {
     const m = appMap.current?.map;
@@ -255,9 +343,11 @@ export function ForecastTab({
         view: viewOf(m),
         country: selection?.type === 'country' ? selection.iso3 : undefined,
         bbox: selection?.type === 'bbox' ? selection.bbox : undefined,
+        outlookOff: !!outlook && !outlookOn,
+        outlookDay: outlook && outlookDay > 0 ? outlook.days[outlookDay] : undefined,
       }),
     );
-  }, [active, applied, enabled, selection]);
+  }, [active, applied, enabled, selection, outlook, outlookOn, outlookDay]);
 
   useEffect(writeHash, [writeHash]);
 
@@ -572,6 +662,44 @@ export function ForecastTab({
               </ul>
             </section>
 
+            {outlook && (
+              <section className="panel-section outlook-section">
+                <h2 className="section-title">{t('outlook.title')}</h2>
+                <label className="outlook-toggle">
+                  <input type="checkbox" checked={outlookOn} onChange={(e) => setOutlookOn(e.target.checked)} />
+                  <span>{t('outlook.show', { area: t('outlook.area') })}</span>
+                </label>
+                {outlookOn && (
+                  <>
+                    <div className="chips" role="group" aria-label={t('outlook.days')}>
+                      {outlook.days.map((day, i) => (
+                        <button type="button" key={day} className={`chip ${i === outlookDay ? 'active' : ''}`} aria-pressed={i === outlookDay} onClick={() => setOutlookDay(i)}>
+                          {dayChip(day, locale)}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="outlook-legend" aria-label={t('outlook.legend')}>
+                      <span className="outlook-swatch faint" />
+                      <span>{'<1%'}</span>
+                      {OUTLOOK_BREAKS.map((b, i) => (
+                        <span key={b} className="outlook-legend-item">
+                          <span className="outlook-swatch" style={{ background: outlookColor(i + 1) }} />
+                          <span>{i + 1 < OUTLOOK_BREAKS.length ? `${nf(b * 100)}–${nf(OUTLOOK_BREAKS[i + 1] * 100)}%` : `≥${nf(b * 100)}%`}</span>
+                        </span>
+                      ))}
+                    </div>
+                    <button type="button" className="link-btn" onClick={showOutlookArea}>
+                      {t('outlook.zoom')}
+                    </button>
+                  </>
+                )}
+                {boot && outlook.days.length > 0 && boot.config.today > outlook.days[outlook.days.length - 1] && <p className="hint warn">{t('outlook.expired')}</p>}
+                <p className="hint">
+                  {t('outlook.note', { issued: utcStamp(outlook.data_policy.issue_utc, locale), gfs: utcStamp(outlook.data_policy.gfs_run_utc, locale) })}
+                </p>
+              </section>
+            )}
+
             <section className="panel-section">
               <h2 className="section-title">{t('tools.title')}</h2>
               <div className="tool-row">
@@ -759,3 +887,15 @@ function minDateOf(defs: LayerDef[], enabled: Set<string>): string {
 }
 
 export type { Bbox };
+
+/** "Sun 15 Nov" for an outlook day (UTC). */
+function dayChip(iso: string, locale: string): string {
+  return new Date(iso + 'T00:00:00Z').toLocaleDateString(locale, { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+/** "15 Nov, 00:00 UTC" for an ISO timestamp. */
+function utcStamp(iso: string, locale: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return `${d.toLocaleString(locale, { timeZone: 'UTC', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })} UTC`;
+}

@@ -1627,6 +1627,56 @@ input[type='search'] {
   margin: 0;
   font-variant-numeric: tabular-nums;
 }
+.popup-grid dd.strong {
+  font-weight: 700;
+}
+
+/* ---- 3-day outlook (Forecast panel) ------------------------------------------------------------- */
+.outlook-toggle {
+  min-height: 44px;
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.outlook-toggle:hover {
+  background: var(--panel-2);
+}
+.outlook-toggle input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--indigo);
+}
+.outlook-legend {
+  margin: 4px 0 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.outlook-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.outlook-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.outlook-swatch.faint {
+  border: 1px solid var(--border);
+}
+.outlook-section .hint {
+  margin-top: 8px;
+}
 
 /* ---- About sheet ------------------------------------------------------------------------------ */
 .about-sheet {

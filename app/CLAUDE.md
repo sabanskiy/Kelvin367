@@ -107,7 +107,11 @@ Port of the earlier vanilla-JS map, same behaviour:
 - **`StatsView.tsx`:** stats and the A-vs-B comparison table.
 - **Date inputs only validate while you edit; nothing loads until Apply/Enter.** Keep it that way: applying on each change made two-ended range edits impossible.
 - **Colours:** layer colours come from `/api/layers`. Period colours are the CSS vars `--period-a` / `--period-b`, read by JS.
-- **`outlook.ts`:** typed `OutlookProvider` stub for the team's Outlook model (ADR 0009). It has no UI yet.
+- **3-day outlook** (`outlook.ts`, `OutlookLayer.ts`): the team's CatBoost forecast for central Spain (`ml/`), P(≥1 NOAA-20 detection) per 0.25° cell for 3 UTC days.
+  - Data: `wwwroot/data/outlook/spain.json`, a byte-for-byte copy of `ml/model/prediction/spain_forecast.json`. For a new run, copy the file again; `outlookData.test.ts` checks its shape.
+  - Shown by default in its own panel section (switch, day chips, legend, note), drawn on the `cells` pane under the detections. Link: `o:off` hides it, `od:<date>` picks a day.
+  - Cell clicks go through a map click + `cellAt()` (the hotspot canvas swallows clicks on lower panes); clicks that open a hotspot popup or happen while an area tool is active are ignored.
+  - `OutlookProvider` is kept for a future model API.
 
 ## Country boundaries — hard requirement
 
