@@ -1,5 +1,5 @@
 // URL hash = shareable state of the active tab.
-//   #history;a:spain;ds:v2;m:raw;v:unusual;w:2024-06-24;r:-9.5,36,-6,39;@-4.00,40.00,6z  (ds:v2 = new-algorithm test data)
+//   #history;a:spain;ds:v2;m:raw;v:unusual;w:2024-06-24;r:-9.5,36,-6,39;@-4.00,40.00,6z  (ds:v2 = Ver. 2 data)
 //   #forecast;d:2026-08-01..2026-08-15;b:2025-08-01..2025-08-15;l:modis,viirs-noaa20;@12.50,42.50,6z;c:ITA
 // Links from the old single-page map have no tab prefix ("#d:…") and open the Forecast tab.
 import type { Bbox } from './geo';

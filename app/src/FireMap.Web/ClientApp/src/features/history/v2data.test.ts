@@ -1,4 +1,4 @@
-// The new algorithm's test data (wwwroot/data/calendar/v2) is copied in by hand, not through
+// Ver. 2 data (wwwroot/data/calendar/v2, the team's new harmonization algorithm) is copied in by hand, not through
 // tools/ImportCalendarData.cs, so these checks stand in for the import tool: every file listed in
 // v2/index.json must have the shape the History tab reads.
 import { existsSync, readFileSync } from 'node:fs';

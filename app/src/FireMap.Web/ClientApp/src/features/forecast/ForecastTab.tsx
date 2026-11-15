@@ -86,6 +86,10 @@ export function ForecastTab({
   const [dayIndex, setDayIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1000);
+  // The drawer opens only from the mobile Controls button and covers the map: pause playback.
+  useEffect(() => {
+    if (drawerOpen) setPlaying(false);
+  }, [drawerOpen]);
   const [stats, setStats] = useState<StatsState>({ state: 'idle' });
   const [server, setServer] = useState<ServerStatus | null>(null);
   const [countryQuery, setCountryQuery] = useState('');

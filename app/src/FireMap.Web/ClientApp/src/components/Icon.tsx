@@ -62,6 +62,19 @@ const PATHS = {
   collapse: <path d="m15 18-6-6 6-6" />,
   rect: <rect x="4" y="6" width="16" height="12" rx="1.5" />,
   flag: <path d="M5 4v16M5 5h11l-2 3.5L16 12H5" />,
+  /** Area picker: a filled pin over a map sheet with a dashed route (design/img/photo_2026-11-15_11-31-08_cr.jpg). */
+  area: (
+    <>
+      <path d="M5.2 14.5H18.8L21.5 21.5H2.5Z" />
+      <path d="M5.5 19.8c1.6-1.6 3.4-1.9 5.2-.9s3.7.7 5.3-.9 1.9-2 2.3-2.6" strokeWidth="1.6" strokeDasharray="2 2" />
+      <path
+        d="M12 18.2C8.4 14 6.4 11.3 6.4 8.3a5.6 5.6 0 0 1 11.2 0c0 3-2 5.7-5.6 9.9ZM12 5.6a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5Z"
+        fill="currentColor"
+        fillRule="evenodd"
+        stroke="none"
+      />
+    </>
+  ),
   compare: <path d="M7 4 3 8l4 4M3 8h13M17 12l4 4-4 4M21 16H8" />,
   timeline: (
     <>

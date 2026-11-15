@@ -15,6 +15,7 @@ import { Segmented } from '../../components/Segmented';
 import { MetricCard } from '../../components/MetricCard';
 import { Scrubber } from '../../components/Scrubber';
 import { SidePanel } from '../../components/SidePanel';
+import { AreaPicker } from './AreaPicker';
 import { Calendar } from './Calendar';
 import { CellLayer } from './CellLayer';
 import { AREA_GEO, DEFAULT_AREA, loadArea, loadGrid, loadGridMeta, loadIndex, loadV2Index, type AreaIndexEntry, type Dataset, type GridIndexEntry, type V2Index } from './data';
@@ -39,8 +40,6 @@ import {
 } from './model';
 
 const DEFAULT_VIEW: MapView = { center: [40, -4], zoom: 5 };
-/** The current/new-algorithm switch is for the team only: shown with ?exp=v2 or a shared link with ds:v2. */
-const EXPERIMENT = new URLSearchParams(location.search).get('exp') === 'v2';
 const SELECTED_STYLE: L.PathOptions = { color: '#533afd', weight: 2, fill: false, dashArray: '6 4' };
 
 interface Custom {
@@ -101,7 +100,6 @@ export function HistoryTab({
   const [showAllYears, setShowAllYears] = useState(false);
   const [, setMapTick] = useState(0); // re-render the cell card when the map moves
   const wantWeek = useRef<string | undefined>(initial.week);
-  const showExp = EXPERIMENT || initial.dataset === 'v2';
   const [v2Index, setV2Index] = useState<V2Index | null>(null);
   const [dataset, setDataset] = useState<Dataset>(initial.dataset ?? 'v1');
   const [comparison, setComparison] = useState<Comparison | null>(null);
@@ -126,7 +124,7 @@ export function HistoryTab({
         setCountries(c);
       })
       .catch((e: Error) => setError(t('err.load', { msg: e.message })));
-    if (showExp) void loadV2Index().then(setV2Index);
+    void loadV2Index().then(setV2Index);
     return () => {
       cellLayer.current?.destroy();
       m.destroy();
@@ -137,7 +135,7 @@ export function HistoryTab({
 
   // ---- preset area -----------------------------------------------------------------------------------
   useEffect(() => {
-    if (custom || bootPending || !countries || areas.length === 0 || (showExp && !v2Index)) return;
+    if (custom || bootPending || !countries || areas.length === 0 || !v2Index) return;
     const id = areas.some((a) => a.id === areaId) ? areaId : areas[0].id;
     let cancelled = false;
     setError(null);
@@ -353,6 +351,11 @@ export function HistoryTab({
   const jump = useMemo(() => (data ? sensorJump(data) : null), [data]);
   const calYears = useMemo(() => (!data ? [] : isMobile && !showAllYears ? data.years.slice(-3) : data.years), [data, isMobile, showAllYears]);
 
+  // On mobile the controls drawer covers the map, so opening it pauses playback.
+  useEffect(() => {
+    if (isMobile && drawerOpen) setPlaying(false);
+  }, [isMobile, drawerOpen]);
+
   // Keep the selected week visible in the compact (3-year) calendar.
   useEffect(() => {
     if (data && isMobile && !showAllYears && !calYears.includes(data.year[week])) setShowAllYears(true);
@@ -434,35 +437,27 @@ export function HistoryTab({
   const weekStart = data?.weeks[week];
   const weekText = weekStart ? weekLabel(weekStart, locale) : '';
   const yearText = weekStart?.slice(0, 4) ?? '';
-  const flag = custom ? '▭' : AREA_GEO[areaId]?.flag ?? areaId.slice(0, 2).toUpperCase();
   const currentName = custom ? t('area.custom', { n: custom.cells.length }) : areaName(areaId);
-  const rawAvailable = !!data && hasRaw(data);
+  // Ver. 2 has no raw series: Raw is still offered there and switches back to Ver. 1.
+  const rawAvailable = !!data && (ds === 'v2' || hasRaw(data));
+  const changeMode = (m: HistoryMode) => {
+    if (m === 'raw' && ds === 'v2') switchDataset('v1');
+    setMode(m);
+  };
 
+  const areaOptions = [
+    ...(custom ? [{ value: '__custom', label: currentName }] : []),
+    ...areas.map((a) => ({ value: a.id, label: `${areaName(a.id)} (${a.from.slice(0, 4)}–${a.to.slice(0, 4)})` })),
+  ];
+  const pickArea = (id: string) => {
+    if (id === '__custom') return;
+    setCustom(null);
+    setDrawMsg(null);
+    fitNext.current = true;
+    setAreaId(id);
+  };
   const areaPicker = (className: string) => (
-    <label className={className}>
-      <span className="flag" aria-hidden="true">
-        {flag}
-      </span>
-      <span className="sr-only">{t('area.aria')}</span>
-      <select
-        value={custom ? '__custom' : areaId}
-        onChange={(e) => {
-          if (e.target.value === '__custom') return;
-          setCustom(null);
-          setDrawMsg(null);
-          fitNext.current = true;
-          setAreaId(e.target.value);
-        }}
-      >
-        {custom && <option value="__custom">{currentName}</option>}
-        {areas.map((a) => (
-          <option key={a.id} value={a.id}>
-            {areaName(a.id)} ({a.from.slice(0, 4)}–{a.to.slice(0, 4)})
-          </option>
-        ))}
-      </select>
-      <Icon name="chevron" size={16} />
-    </label>
+    <AreaPicker className={className} value={custom ? '__custom' : areaId} options={areaOptions} onChange={pickArea} label={t('area.aria')} />
   );
 
   let cellCard = null;
@@ -513,7 +508,6 @@ export function HistoryTab({
         </div>
         <span>{t('legend.more')}</span>
       </div>
-      <div className="map-meta">{grid ? t(ds === 'v2' ? 'map.meta.raw' : 'map.meta', { week: `${weekText} ${yearText}` }) : data ? t('map.noGrid') : ''}</div>
 
       <SidePanel
         eyebrow={t('hist.eyebrow')}
@@ -550,33 +544,75 @@ export function HistoryTab({
         )}
         {drawMsg && <p className={`hint ${drawMsg.kind === 'warn' ? 'warn' : ''}`}>{drawMsg.text}</p>}
 
-        {hasV2 && (
-          <section className="ds-section">
-            <Segmented
-              value={ds}
-              onChange={switchDataset}
-              label={t('ds.aria')}
-              className="compact"
-              options={[
-                { value: 'v1', label: t('ds.v1') },
-                { value: 'v2', label: t('ds.v2') },
-              ]}
-            />
-            {ds === 'v2' && <p className="hint warn">{t('ds.v2.note')}</p>}
-          </section>
-        )}
-
         <section className="mode-section">
           <Segmented
             value={mode}
-            onChange={setMode}
+            onChange={changeMode}
             label={t('mode.aria')}
             options={[
               { value: 'raw', label: t('mode.raw'), disabled: !rawAvailable, title: rawAvailable ? undefined : t('mode.raw.missing') },
               { value: 'harm', label: t('mode.harm') },
             ]}
           />
+          {hasV2 && mode === 'harm' && (
+            <div className="ds-switch">
+              <Segmented
+                value={ds}
+                onChange={switchDataset}
+                label={t('ds.aria')}
+                options={[
+                  { value: 'v1', label: t('ds.v1') },
+                  { value: 'v2', label: t('ds.v2') },
+                ]}
+              />
+            </div>
+          )}
           <p>{mode === 'raw' ? t('mode.raw.help') : t('mode.harm.help')}</p>
+        </section>
+
+        <section className="calendar-section" id="hist-calendar">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">{t('cal.eyebrow')}</span>
+              <h2>{t('cal.title')}</h2>
+            </div>
+            <details className="info-pop">
+              <summary className="icon-info" aria-label={t('cal.info')} title={t('cal.info')}>
+                <Icon name="info" size={17} />
+              </summary>
+              <p>{t('cal.info.text')}</p>
+            </details>
+          </div>
+          <div className="calendar-controls">
+            <Segmented
+              value={calView}
+              onChange={setCalView}
+              label={t('cal.view.aria')}
+              className="compact"
+              options={[
+                { value: 'counts', label: t('cal.view.counts') },
+                { value: 'unusual', label: t('cal.view.unusual') },
+              ]}
+            />
+            {calView === 'unusual' && (
+              <span className="cal-legend">
+                {t('legend.quieter')}
+                <i style={{ background: `linear-gradient(90deg, ${[0, 25, 50, 75, 100].map(divColor).join(',')})` }} />
+                {t('legend.busier')}
+              </span>
+            )}
+          </div>
+          {data && shown && (
+            <Calendar data={data} shown={shown} pct={pct} view={calView} mode={mode} selected={week} onSelect={onWeek} years={calYears} theme={theme} />
+          )}
+          {data && isMobile && data.years.length > 3 && (
+            <button type="button" className="link-btn show-years" onClick={() => setShowAllYears(!showAllYears)}>
+              {showAllYears ? t('cal.showRecent') : t('cal.showAll', { n: data.years.length })}
+            </button>
+          )}
+          <button type="button" className="download-button" onClick={downloadCsv} disabled={!data}>
+            <Icon name="download" /> {t('csv')}
+          </button>
         </section>
 
         {data && (
@@ -628,51 +664,6 @@ export function HistoryTab({
             </div>
           </div>
         )}
-
-        <section className="calendar-section" id="hist-calendar">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">{t('cal.eyebrow')}</span>
-              <h2>{t('cal.title')}</h2>
-            </div>
-            <details className="info-pop">
-              <summary className="icon-info" aria-label={t('cal.info')} title={t('cal.info')}>
-                <Icon name="info" size={17} />
-              </summary>
-              <p>{t('cal.info.text')}</p>
-            </details>
-          </div>
-          <div className="calendar-controls">
-            <Segmented
-              value={calView}
-              onChange={setCalView}
-              label={t('cal.view.aria')}
-              className="compact"
-              options={[
-                { value: 'counts', label: t('cal.view.counts') },
-                { value: 'unusual', label: t('cal.view.unusual') },
-              ]}
-            />
-            {calView === 'unusual' && (
-              <span className="cal-legend">
-                {t('legend.quieter')}
-                <i style={{ background: `linear-gradient(90deg, ${[0, 25, 50, 75, 100].map(divColor).join(',')})` }} />
-                {t('legend.busier')}
-              </span>
-            )}
-          </div>
-          {data && shown && (
-            <Calendar data={data} shown={shown} pct={pct} view={calView} mode={mode} selected={week} onSelect={onWeek} years={calYears} theme={theme} />
-          )}
-          {data && isMobile && data.years.length > 3 && (
-            <button type="button" className="link-btn show-years" onClick={() => setShowAllYears(!showAllYears)}>
-              {showAllYears ? t('cal.showRecent') : t('cal.showAll', { n: data.years.length })}
-            </button>
-          )}
-          <button type="button" className="download-button" onClick={downloadCsv} disabled={!data}>
-            <Icon name="download" /> {t('csv')}
-          </button>
-        </section>
       </SidePanel>
 
       {data && (

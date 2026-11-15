@@ -1,6 +1,6 @@
 // Loading the calendar data imported from the spacechallenge pipeline (wwwroot/data/calendar, see
-// tools/ImportCalendarData.cs). Test data from the new harmonization algorithm sits in calendar/v2/
-// (one {area}.json per area listed in v2/index.json) and is shown only through the dataset switch.
+// tools/ImportCalendarData.cs). Ver. 2, harmonized with the team's new algorithm, sits in calendar/v2/
+// (one {area}.json per area listed in v2/index.json); areas listed there get a Ver. 1 / Ver. 2 switch.
 import K367, { type AoiData, type Grid, type GridMeta } from '../../lib/chain';
 
 const BASE = '/data/calendar';
@@ -26,17 +26,17 @@ export interface GridIndexEntry {
  * Where each preset lies on the 0.5° grids. Cells whose centre is inside one of the countries
  * (Natural Earth, Ukraine POV — the same file the map uses) are drawn for the preset.
  */
-export const AREA_GEO: Record<string, { grid: string | null; iso3: string[]; flag: string }> = {
-  ukraine: { grid: 'grid_europe', iso3: ['UKR'], flag: 'UA' },
-  iberia: { grid: 'grid_europe', iso3: ['ESP', 'PRT'], flag: 'IB' },
-  spain: { grid: 'grid_europe', iso3: ['ESP'], flag: 'ES' },
-  portugal: { grid: 'grid_europe', iso3: ['PRT'], flag: 'PT' },
-  greece: { grid: 'grid_europe', iso3: ['GRC'], flag: 'GR' },
-  italy: { grid: 'grid_europe', iso3: ['ITA'], flag: 'IT' },
-  chile: { grid: 'grid_south_america', iso3: ['CHL'], flag: 'CL' },
-  south_africa: { grid: 'grid_africa', iso3: ['ZAF'], flag: 'ZA' },
-  canada: { grid: null, iso3: ['CAN'], flag: 'CA' },
-  indonesia: { grid: null, iso3: ['IDN'], flag: 'ID' },
+export const AREA_GEO: Record<string, { grid: string | null; iso3: string[] }> = {
+  ukraine: { grid: 'grid_europe', iso3: ['UKR'] },
+  iberia: { grid: 'grid_europe', iso3: ['ESP', 'PRT'] },
+  spain: { grid: 'grid_europe', iso3: ['ESP'] },
+  portugal: { grid: 'grid_europe', iso3: ['PRT'] },
+  greece: { grid: 'grid_europe', iso3: ['GRC'] },
+  italy: { grid: 'grid_europe', iso3: ['ITA'] },
+  chile: { grid: 'grid_south_america', iso3: ['CHL'] },
+  south_africa: { grid: 'grid_africa', iso3: ['ZAF'] },
+  canada: { grid: null, iso3: ['CAN'] },
+  indonesia: { grid: null, iso3: ['IDN'] },
 };
 
 /** Demo opens on Iberia (spacechallenge decision 6); presets in this order, unknown ids last. */
@@ -66,7 +66,7 @@ export function loadIndex(): Promise<{ aois: AreaIndexEntry[]; grids: GridIndexE
   return indexPromise;
 }
 
-/** Current data (v1) or the new algorithm's test data (v2). */
+/** Ver. 1 (the pipeline's data) or Ver. 2 (the new algorithm, calendar/v2). */
 export type Dataset = 'v1' | 'v2';
 
 export interface V2Index {
