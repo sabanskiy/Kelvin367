@@ -11,6 +11,8 @@ export interface Prepared extends AoiData {
   woy: number[];
   years: number[];
   gapAny: Set<number>;
+  provisional: Set<number>;
+  outOfDomain: Set<number>;
   weekIndex: Map<string, number>;
 }
 
@@ -29,6 +31,8 @@ export function prepare(d: AoiData): Prepared {
     woy,
     years: [...new Set(year)],
     gapAny: new Set(Object.values(d.gap_weeks ?? {}).flat()),
+    provisional: new Set(d.provisional_weeks ?? []),
+    outOfDomain: new Set(d.out_of_domain_weeks ?? []),
     weekIndex: new Map(d.weeks.map((w, i) => [w, i])),
   };
 }
@@ -113,11 +117,12 @@ export function sensorJump(d: Prepared): { raw: number; harm: number } | null {
 
 // ---- CSV -------------------------------------------------------------------------------------
 
-export function toCsv(d: Prepared, mode: HistoryMode): string {
+/** `harmScale` names the harmonized unit in the CSV (the new algorithm's test data uses another one). */
+export function toCsv(d: Prepared, mode: HistoryMode, harmScale = 'modis_equivalent'): string {
   const s = d.series, sh = shownSeries(d, mode), pct = percentiles(d, mode);
   const v = (x: number | null | undefined) => (x == null ? '' : x);
   const rows = ['week_start,modis_raw,snpp_raw,noaa20_raw,noaa21_raw,shown_scale,shown_value,lo80,hi80,source,percentile,known_gap'];
-  const scale = mode === 'raw' && s.naive ? 'raw_stitched' : 'modis_equivalent';
+  const scale = mode === 'raw' && s.naive ? 'raw_stitched' : harmScale;
   d.weeks.forEach((w, i) =>
     rows.push(
       [

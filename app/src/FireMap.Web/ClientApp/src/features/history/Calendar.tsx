@@ -171,6 +171,8 @@ export function Calendar({
     }
     if (pct[i] != null) lines.push(t('tip.pct', { v: nf(pct[i], 0) }));
     if (data.gapAny.has(i)) lines.push(t('tip.gap'));
+    if (data.provisional.has(i)) lines.push(t('tip.provisional'));
+    if (data.outOfDomain.has(i)) lines.push(t('tip.outOfDomain'));
     return lines;
   };
 

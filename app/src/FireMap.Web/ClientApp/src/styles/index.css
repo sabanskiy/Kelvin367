@@ -666,6 +666,15 @@ select {
   margin: 0 0 18px;
   font-size: 12px;
 }
+.ds-section {
+  margin: 0 0 18px;
+}
+.ds-compare {
+  margin: 0 0 24px;
+}
+.ds-compare .hint {
+  margin: 0 0 6px;
+}
 .mode-section {
   padding-bottom: 24px;
   border-bottom: 1px solid var(--border);

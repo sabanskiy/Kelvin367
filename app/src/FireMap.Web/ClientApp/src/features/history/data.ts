@@ -1,5 +1,6 @@
 // Loading the calendar data imported from the spacechallenge pipeline (wwwroot/data/calendar, see
-// tools/ImportCalendarData.cs). Ukraine is not in it until its data treats Crimea as part of Ukraine.
+// tools/ImportCalendarData.cs). Test data from the new harmonization algorithm sits in calendar/v2/
+// (one {area}.json per area listed in v2/index.json) and is shown only through the dataset switch.
 import K367, { type AoiData, type Grid, type GridMeta } from '../../lib/chain';
 
 const BASE = '/data/calendar';
@@ -65,14 +66,32 @@ export function loadIndex(): Promise<{ aois: AreaIndexEntry[]; grids: GridIndexE
   return indexPromise;
 }
 
+/** Current data (v1) or the new algorithm's test data (v2). */
+export type Dataset = 'v1' | 'v2';
+
+export interface V2Index {
+  about: string;
+  unit: string;
+  aois: { id: string; from: string; to: string; source: string }[];
+}
+
+let v2Promise: Promise<V2Index> | null = null;
+
+/** Areas with new-algorithm data; empty when the folder is not deployed. */
+export function loadV2Index(): Promise<V2Index> {
+  v2Promise ??= getJson<V2Index>(`${BASE}/v2/index.json`).catch(() => ({ about: '', unit: '', aois: [] }));
+  return v2Promise;
+}
+
 const areaCache = new Map<string, Promise<AoiData>>();
 
-export function loadArea(id: string): Promise<AoiData> {
-  let p = areaCache.get(id);
+export function loadArea(id: string, dataset: Dataset = 'v1'): Promise<AoiData> {
+  const url = dataset === 'v2' ? `${BASE}/v2/${id}.json` : `${BASE}/${id}.json`;
+  let p = areaCache.get(url);
   if (!p) {
-    p = getJson<AoiData>(`${BASE}/${id}.json`);
-    p.catch(() => areaCache.delete(id));
-    areaCache.set(id, p);
+    p = getJson<AoiData>(url);
+    p.catch(() => areaCache.delete(url));
+    areaCache.set(url, p);
   }
   return p;
 }
