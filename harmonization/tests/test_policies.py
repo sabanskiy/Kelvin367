@@ -78,3 +78,24 @@ def test_no_available_source_is_nan_and_explicitly_flagged():
     assert np.isnan(got.equal_mix_count_1d)
     assert np.isnan(got.viirs_first_count_1d)
     assert got.viirs_first_flag == "no_source"
+
+
+def test_duplicate_keys_are_checked_after_date_normalization():
+    groups = pd.DataFrame(
+        {
+            "date": ["2020-06-09", "2020-06-09 10:00"],
+            "cell_iy": [160, 160],
+            "cell_ix": [-15, -15],
+            "MODIS": [0.0, 0.0],
+            "SNPP": [0.0, 0.0],
+            "NOAA20": [0.0, 0.0],
+        }
+    )
+    availability = {
+        "MODIS": Availability(date(2000, 11, 1)),
+        "SNPP": Availability(date(2012, 1, 20)),
+        "NOAA20": Availability(date(2018, 4, 1)),
+    }
+
+    with np.testing.assert_raises_regex(ValueError, "duplicate date/cell"):
+        harmonize_daily(groups, availability, {"SNPP": 0.5, "NOAA20": 0.5})

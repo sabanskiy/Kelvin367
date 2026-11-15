@@ -4,20 +4,48 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.metadata
 import json
+import subprocess
 from datetime import date, datetime, timezone
 from pathlib import Path
 
 import pandas as pd
+import numpy as np
+import pyarrow
 
 from .policies import Availability, harmonize_daily
 
 DEFAULT_AVAILABILITY = {
-    "MODIS": Availability(date(2003, 1, 1)),
-    "SNPP": Availability(date(2012, 1, 20), date(2026, 11, 2)),
-    "NOAA20": Availability(date(2018, 4, 1)),
+    "MODIS": Availability(date(2000, 11, 1)),
+    "SNPP": Availability(
+        date(2012, 1, 20),
+        date(2026, 11, 2),
+        gaps=(
+            (date(2022, 7, 27), date(2022, 8, 10)),
+            (date(2024, 5, 30), date(2024, 6, 3)),
+            (date(2024, 7, 10), date(2024, 7, 15)),
+            (date(2024, 7, 25), date(2024, 7, 28)),
+            (date(2024, 11, 3), date(2024, 11, 5)),
+            (date(2026, 3, 10), date(2026, 3, 12)),
+            (date(2026, 4, 28), date(2026, 6, 2)),
+            (date(2026, 7, 11), date(2026, 7, 15)),
+        ),
+    ),
+    "NOAA20": Availability(
+        date(2018, 4, 1),
+        gaps=(
+            (date(2023, 7, 19), date(2023, 7, 22)),
+            (date(2024, 2, 4), date(2024, 2, 5)),
+        ),
+    ),
 }
-DEFAULT_WEIGHTS = {"SNPP": 0.576, "NOAA20": 0.424}
+DEFAULT_WEIGHTS = {"SNPP": 0.5760572840570874, "NOAA20": 0.42394271594291244}
+WEIGHT_PROVENANCE = {
+    "method": "train-only inverse-variance weights from SNPP-to-MODIS and SNPP-to-NOAA20 links",
+    "train_end": "2020-12-31",
+    "source": "spacechallenge alex_daily_metadata.json",
+}
 
 
 def sha256(path: Path) -> str:
@@ -26,6 +54,29 @@ def sha256(path: Path) -> str:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def _commit() -> str:
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=Path(__file__).resolve().parents[3],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+
+
+def _availability_metadata() -> dict:
+    return {
+        group: {
+            "start": spec.start.isoformat(),
+            "end": spec.end.isoformat() if spec.end else None,
+            "gaps": [[start.isoformat(), end.isoformat()] for start, end in spec.gaps],
+        }
+        for group, spec in DEFAULT_AVAILABILITY.items()
+    }
 
 
 def export_harmonized(source: Path, output: Path, metadata_path: Path) -> dict:
@@ -39,9 +90,17 @@ def export_harmonized(source: Path, output: Path, metadata_path: Path) -> dict:
         "available_policies": ["equal_mix_count_1d", "viirs_first_count_1d"],
         "input_contract": "daily calibrated MODIS-equivalent group counts",
         "viirs_weights": DEFAULT_WEIGHTS,
+        "weight_provenance": WEIGHT_PROVENANCE,
+        "availability": _availability_metadata(),
+        "generator": {
+            "package": "kelvin367-harmonization",
+            "version": importlib.metadata.version("kelvin367-harmonization"),
+            "commit": _commit(),
+        },
+        "versions": {"python": __import__("platform").python_version(), "numpy": np.__version__, "pandas": pd.__version__, "pyarrow": pyarrow.__version__},
         "built_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "source": {"path": str(source), "sha256": sha256(source)},
-        "output": {"path": str(output), "rows": len(result), "sha256": sha256(output)},
+        "source": {"path": source.name, "sha256": sha256(source)},
+        "output": {"path": output.name, "rows": len(result), "sha256": sha256(output)},
     }
     metadata_path.parent.mkdir(parents=True, exist_ok=True)
     metadata_path.write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8")

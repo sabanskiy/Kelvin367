@@ -34,3 +34,11 @@ def estimate_link(weekly: pd.DataFrame, *, min_count: int = 3) -> dict:
         "min_count": min_count,
         "estimator": "geometric_mean_of_weekly_ratios",
     }
+
+
+def compose_factor(source_to_target: dict, source_to_intermediate: dict, daynight: str) -> float:
+    """Compose intermediate-to-target through a shared source platform."""
+    suffix = {"D": "day", "N": "night"}.get(daynight.upper())
+    if suffix is None:
+        raise ValueError("daynight must be D or N")
+    return float(source_to_target[f"k_{suffix}"]) / float(source_to_intermediate[f"k_{suffix}"])

@@ -17,7 +17,9 @@ The exporter accepts CSV or Parquet with one row per `date`, `cell_iy`, `cell_ix
 - `SNPP`: S-NPP daily count converted to the MODIS scale;
 - `NOAA20`: NOAA-20 daily count converted to the MODIS scale.
 
-An available sensor with no detections is represented by `0`. Sensor outages are handled by the availability calendar, not by changing observed zeros to missing values. Day/night link factors can be estimated with `kelvin367_harmonization.calibration.estimate_link`; it uses the geometric mean of valid weekly target/source ratios.
+An available sensor with no detections is represented by `0`. Sensor outages are handled by the versioned availability calendar, not by changing observed zeros to missing values. Day/night link factors can be estimated with `kelvin367_harmonization.calibration.estimate_link`; it uses the geometric mean of valid weekly target/source ratios. NOAA-20 is mapped to MODIS through the shared S-NPP links: `NOAA20→MODIS = SNPP→MODIS / SNPP→NOAA20`. NOAA-21 is excluded because the train period ending `2020-12-31` has no overlap for a leakage-safe link.
+
+The frozen daily VIIRS weights are S-NPP `0.5760572840570874` and NOAA-20 `0.42394271594291244`. They are train-only inverse-variance weights derived from the S-NPP→MODIS and S-NPP→NOAA-20 link uncertainties through `2020-12-31`; the exporter records this provenance, the complete availability calendar, generator commit and library versions in metadata.
 
 ## Run the sample
 

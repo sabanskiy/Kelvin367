@@ -44,13 +44,13 @@ def harmonize_daily(
     missing = required - set(calibrated_groups.columns)
     if missing:
         raise ValueError(f"missing columns: {', '.join(sorted(missing))}")
-    if calibrated_groups.duplicated(KEYS).any():
-        raise ValueError("duplicate date/cell rows")
     if any(float(viirs_weights.get(platform, 0.0)) < 0 for platform in ("SNPP", "NOAA20")):
         raise ValueError("VIIRS weights must be nonnegative")
 
     out = calibrated_groups.copy()
-    out["date"] = pd.to_datetime(out.date).dt.tz_localize(None).dt.normalize()
+    out["date"] = pd.to_datetime(out.date, format="mixed").dt.tz_localize(None).dt.normalize()
+    if out.duplicated(KEYS).any():
+        raise ValueError("duplicate date/cell rows after date normalization")
     days = out.date.dt.date
 
     equal_num = np.zeros(len(out), dtype=float)
