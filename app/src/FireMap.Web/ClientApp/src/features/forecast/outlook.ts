@@ -1,6 +1,8 @@
 // Extension point for the team's Fire Outlook model (ADR 0009, fire-outlook-data-contract.md).
 // Today the Forecast tab shows one static outlook file (OutlookFile below, wwwroot/data/outlook/spain.json):
-// the team's CatBoost model (ml/) for central Spain, copied unchanged from ml/model/prediction/spain_forecast.json.
+// the team's CatBoost model (ml/) for Spain, copied unchanged from ml/model/prediction/spain_forecast.json. The model was
+// trained on central Spain only (quality.training_grid_bbox_wsen): cells outside it are flagged `outside_training_grid`,
+// and days past the trained horizon are marked "experimental" in quality.method_by_day.
 // The OutlookProvider contract is kept for a future model API.
 //
 // V0 contract: P(VIIRS records ≥ 1 accepted hotspot in a 0.25° cell on target_date | data available on issue_date),
@@ -57,6 +59,8 @@ export interface OutlookFileCell {
   lon_center: number;
   /** [west, south, east, north]; west/south inclusive, east/north exclusive. */
   bbox_wsen: [number, number, number, number];
+  /** Outside the central-Spain grid the model was trained on: scored, but not validated geographically. */
+  outside_training_grid?: boolean;
 }
 
 /** The team's daily grid forecast: P(≥1 NOAA-20 FIRMS detection in the cell on each UTC day). */
@@ -70,7 +74,14 @@ export interface OutlookFile {
   /** Target UTC days, one series row each. */
   days: string[];
   series: { noaa20_detection_probability: (number | null)[][] };
-  quality: { target: string; model_run: string };
+  quality: {
+    target: string;
+    model_run: string;
+    /** [west, south, east, north] of the grid the model was trained (and validated) on. */
+    training_grid_bbox_wsen?: [number, number, number, number];
+    /** One entry per day: "trained_horizon", or "experimental" (beyond the horizon the models were validated for). */
+    method_by_day?: string[];
+  };
   data_policy: { issue_utc: string; gfs_run_utc: string };
   warnings?: string[];
 }
@@ -80,6 +91,9 @@ export async function loadOutlook(url = '/data/outlook/spain.json'): Promise<Out
   if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
   return (await r.json()) as OutlookFile;
 }
+
+/** Day i is past the horizon the models were validated for. */
+export const isExperimentalDay = (data: OutlookFile, i: number) => data.quality.method_by_day?.[i] === 'experimental';
 
 /** Lower bounds of the probability classes on the map and in the legend (most cells are below 1%). */
 export const OUTLOOK_BREAKS = [0.01, 0.02, 0.05, 0.1, 0.2];

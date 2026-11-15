@@ -1,9 +1,9 @@
-// The 3-day outlook file (wwwroot/data/outlook/spain.json) is copied by hand from the team's
+// The forecast file (wwwroot/data/outlook/spain.json) is copied by hand from the team's
 // ml/model/prediction/spain_forecast.json. These checks make sure a new run keeps the shape the Forecast tab reads.
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { outlookClass, percent, type OutlookFile } from './outlook';
+import { isExperimentalDay, outlookClass, percent, type OutlookFile } from './outlook';
 
 const FILE = resolve(__dirname, '../../../../wwwroot/data/outlook/spain.json');
 
@@ -49,6 +49,20 @@ describe('wwwroot/data/outlook/spain.json', () => {
       expect(p[i].length, day).toBe(d.cells.length);
       expect(p[i].every((x) => x === null || (x >= 0 && x <= 1)), `${day}: values in 0–1 or null`).toBe(true);
     });
+  });
+
+  it('flags the cells outside the training grid and marks each day trained or experimental', () => {
+    const t = d.quality.training_grid_bbox_wsen;
+    expect(t, 'training_grid_bbox_wsen').toBeDefined();
+    const [tw, ts, te, tn] = t!;
+    for (const c of d.cells) {
+      const inside = c.lon_center > tw && c.lon_center < te && c.lat_center > ts && c.lat_center < tn;
+      expect(!!c.outside_training_grid, `${c.cell_y},${c.cell_x}`).toBe(!inside);
+    }
+    const m = d.quality.method_by_day!;
+    expect(m.length).toBe(d.days.length);
+    expect(m.every((x) => x === 'trained_horizon' || x === 'experimental')).toBe(true);
+    expect(d.days.filter((_, i) => isExperimentalDay(d, i)).length).toBe(m.filter((x) => x === 'experimental').length);
   });
 
   it('says when and from which weather run it was issued', () => {

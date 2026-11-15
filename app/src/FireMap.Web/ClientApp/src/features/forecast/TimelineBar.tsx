@@ -16,6 +16,7 @@ export function TimelineBar({
   periods,
   counts,
   forecastDays,
+  experimentalDays,
   observedTo,
   on,
   index,
@@ -30,6 +31,8 @@ export function TimelineBar({
   counts: Partial<Record<Period['key'], Map<string, number>>>;
   /** Days with a model forecast; marked on the track and in the day info. */
   forecastDays?: Set<string>;
+  /** Forecast days past the horizon the model was validated for. */
+  experimentalDays?: Set<string>;
   /** Last observed day: later days have no detections, only the forecast. */
   observedTo?: string;
   on: boolean;
@@ -149,7 +152,7 @@ export function TimelineBar({
             </div>
             <div className="tl-count">
               {futureOnly(index)
-                ? t('tl.forecastOnly')
+                ? t(experimentalDays?.has(a.days[index]) ? 'tl.forecastExperimental' : 'tl.forecastOnly')
                 : periods.map((p) => (multi ? `${p.key} ${nf(count(p, index))}` : t('tl.detections', { n: nf(count(p, index)) }))).join(' · ')}
               {isForecast(index) && !futureOnly(index) ? ` · ${t('tl.forecast')}` : ''} · {t('tl.position', { i: index + 1, n: length })}
             </div>
