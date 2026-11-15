@@ -1,0 +1,92 @@
+name: Deploy to Azure Container Apps (trial)
+
+# Trial deployment, side by side with the App Service F1 app (azure-webapp.yml, from main).
+# Runs only for the container-apps branch: builds and tests like azure-webapp.yml, pushes an image to
+# GHCR, then points the container app at it. The deploy job needs repo variables AZURE_CLIENT_ID,
+# AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID (OIDC, no passwords), ACA_APP_NAME and ACA_RESOURCE_GROUP;
+# until they exist only build + image run. Firms__MapKey lives in the container app as a secret.
+
+on:
+  push:
+    branches: [container-apps]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-app
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/sabanskiy/kelvin367
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      # The React client (src/FireMap.Web/ClientApp) is built by `dotnet publish` (PublishClientApp target).
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/src/FireMap.Web/ClientApp/package-lock.json
+
+      - name: Client typecheck and tests
+        working-directory: app/src/FireMap.Web/ClientApp
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+
+      - name: Test
+        run: dotnet test tests/FireMap.Tests -c Release
+
+      - name: Publish
+        run: dotnet publish src/FireMap.Web -c Release -o publish
+
+      - name: Log in to GHCR
+        working-directory: .
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      # The source label links the package to this repository, so repo collaborators can pull it.
+      - name: Build and push image
+        working-directory: .
+        run: |
+          docker build -f app/Dockerfile app/publish \
+            --label org.opencontainers.image.source=https://github.com/${{ github.repository }} \
+            -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:trial"
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:trial"
+
+  deploy:
+    needs: build
+    if: vars.ACA_APP_NAME != ''
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Point the container app at the new image
+        run: |
+          az extension add -n containerapp --upgrade --only-show-errors
+          az containerapp update -n "${{ vars.ACA_APP_NAME }}" -g "${{ vars.ACA_RESOURCE_GROUP }}" \
+            --image "$IMAGE:${{ github.sha }}" --query properties.latestRevisionName -o tsv
