@@ -102,14 +102,17 @@ Port of the earlier vanilla-JS map, same behaviour:
   - Markers are built once per response and indexed by UTC day (`byDay`). The timeline only swaps which markers are drawn, with no refetch.
 - **`TimelineBar.tsx`:** client-side playback over the loaded data. In compare mode, days are aligned by index (day *n* of A beside day *n* of B).
 - **`AreaSelector.ts`:**
-  - Rectangle (Geoman) or country; only one is active at a time, and pressing a tool button again removes its filter.
+  - The panel no longer has area tools ("Analyze an area" was removed); a shared link with `c:ISO3` or `r:w,s,e,n` still selects a country or rectangle, and the stats section then appears.
+  - Rectangle (Geoman) or country; only one is active at a time.
   - Country hit-testing is JS point-in-polygon on map events, because the points canvas would swallow events meant for country polygons.
 - **`StatsView.tsx`:** stats and the A-vs-B comparison table.
 - **Date inputs only validate while you edit; nothing loads until Apply/Enter.** Keep it that way: applying on each change made two-ended range edits impossible.
 - **Colours:** layer colours come from `/api/layers`. Period colours are the CSS vars `--period-a` / `--period-b`, read by JS.
-- **3-day outlook** (`outlook.ts`, `OutlookLayer.ts`): the team's CatBoost forecast for central Spain (`ml/`), P(≥1 NOAA-20 detection) per 0.25° cell for 3 UTC days.
+- **Forecast layer** (`outlook.ts`, `OutlookLayer.ts`): the team's CatBoost forecast for central Spain (`ml/`), P(≥1 NOAA-20 detection) per 0.25° cell for 3 UTC days.
   - Data: `wwwroot/data/outlook/spain.json`, a byte-for-byte copy of `ml/model/prediction/spain_forecast.json`. For a new run, copy the file again; `outlookData.test.ts` checks its shape.
-  - Shown by default in its own panel section (switch, day chips, legend, note), drawn on the `cells` pane under the detections. Link: `o:off` hides it, `od:<date>` picks a day.
+  - A "Forecast" checkbox in Layers (group "Kelvin367 model"), on by default; `o:off` in the link switches it off.
+  - With it on, the timeline continues past the observed range into the forecast's future days (one period only, when the range reaches the day before the forecast). Those days are striped on the track.
+  - Cells (on the `cells` pane, under the detections) and the map legend show only while the timeline is on a forecast day. Switching the layer on jumps the timeline to the forecast's first day.
   - Cell clicks go through a map click + `cellAt()` (the hotspot canvas swallows clicks on lower panes); clicks that open a hotspot popup or happen while an area tool is active are ignored.
   - `OutlookProvider` is kept for a future model API.
 

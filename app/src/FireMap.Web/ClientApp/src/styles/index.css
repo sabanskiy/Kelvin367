@@ -1242,11 +1242,6 @@ input[type='search'] {
   gap: 10px;
   margin-top: 14px;
 }
-.tool-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
 .tool {
   min-height: 46px;
   padding: 0 12px;
@@ -1268,9 +1263,6 @@ input[type='search'] {
   color: var(--indigo);
   background: color-mix(in srgb, var(--indigo) 10%, var(--panel));
   border-color: var(--indigo);
-}
-.search-row {
-  margin-top: 10px;
 }
 
 .layer-list,
@@ -1631,26 +1623,7 @@ input[type='search'] {
   font-weight: 700;
 }
 
-/* ---- 3-day outlook (Forecast panel) ------------------------------------------------------------- */
-.outlook-toggle {
-  min-height: 44px;
-  margin-bottom: 8px;
-  padding: 6px 8px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-.outlook-toggle:hover {
-  background: var(--panel-2);
-}
-.outlook-toggle input {
-  width: 18px;
-  height: 18px;
-  margin: 0;
-  accent-color: var(--indigo);
-}
+/* ---- Forecast layer (3-day model forecast) ------------------------------------------------------ */
 .outlook-legend {
   margin: 4px 0 8px;
   display: flex;
@@ -1674,8 +1647,18 @@ input[type='search'] {
 .outlook-swatch.faint {
   border: 1px solid var(--border);
 }
-.outlook-section .hint {
-  margin-top: 8px;
+.legend.outlook-legend {
+  margin: 0;
+  max-width: calc(100% - 520px);
+  flex-wrap: wrap;
+}
+.outlook-legend .link-btn {
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.tl-bar.forecast {
+  background: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in srgb, var(--warm) 22%, transparent) 4px 7px);
 }
 
 /* ---- About sheet ------------------------------------------------------------------------------ */

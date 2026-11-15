@@ -1,6 +1,7 @@
 // Day-by-day playback of the loaded hot spots (port of timeline.js), in the Figma scrubber position.
 // Off: shows the whole range with a per-day histogram; ▶ or a bar click turns it on.
 // On: steps through days; in compare mode days are aligned by position (day n of A beside day n of B).
+// Forecast days (the Forecast layer) are marked on the track; days after the observed range are forecast only.
 import { useEffect, type CSSProperties } from 'react';
 import { Icon } from '../../components/Icon';
 import { useI18n } from '../../i18n';
@@ -14,6 +15,8 @@ export interface TimelinePeriod extends Period {
 export function TimelineBar({
   periods,
   counts,
+  forecastDays,
+  observedTo,
   on,
   index,
   playing,
@@ -25,6 +28,10 @@ export function TimelineBar({
 }: {
   periods: TimelinePeriod[];
   counts: Partial<Record<Period['key'], Map<string, number>>>;
+  /** Days with a model forecast; marked on the track and in the day info. */
+  forecastDays?: Set<string>;
+  /** Last observed day: later days have no detections, only the forecast. */
+  observedTo?: string;
   on: boolean;
   index: number;
   playing: boolean;
@@ -59,6 +66,8 @@ export function TimelineBar({
   };
 
   const a = periods[0];
+  const isForecast = (i: number) => !multi && !!a?.days[i] && !!forecastDays?.has(a.days[i]);
+  const futureOnly = (i: number) => isForecast(i) && !!observedTo && a.days[i] > observedTo;
   const startLabel = multi ? t('tl.dayN', { n: 1 }) : shortDate(a?.days[0], locale);
   const endLabel = multi ? t('tl.dayN', { n: length }) : shortDate(a?.days.at(-1), locale);
 
@@ -91,7 +100,15 @@ export function TimelineBar({
           {Array.from({ length }, (_, i) => {
             const title = periods.map((p) => `${p.days[i] ?? '—'}: ${nf(count(p, i))}`).join(' | ');
             return (
-              <button type="button" key={i} className={`tl-bar${on && i === index ? ' current' : ''}`} onClick={() => go(i)} title={title} aria-label={title} tabIndex={-1}>
+              <button
+                type="button"
+                key={i}
+                className={`tl-bar${on && i === index ? ' current' : ''}${isForecast(i) ? ' forecast' : ''}`}
+                onClick={() => go(i)}
+                title={isForecast(i) ? `${title} · ${t('tl.forecast')}` : title}
+                aria-label={isForecast(i) ? `${title} · ${t('tl.forecast')}` : title}
+                tabIndex={-1}
+              >
                 {periods.map((p) => {
                   const c = count(p, i);
                   const h = c === 0 ? 0 : Math.max(6, (c / max) * 100);
@@ -131,8 +148,10 @@ export function TimelineBar({
               ))}
             </div>
             <div className="tl-count">
-              {periods.map((p) => (multi ? `${p.key} ${nf(count(p, index))}` : t('tl.detections', { n: nf(count(p, index)) }))).join(' · ')} ·{' '}
-              {t('tl.position', { i: index + 1, n: length })}
+              {futureOnly(index)
+                ? t('tl.forecastOnly')
+                : periods.map((p) => (multi ? `${p.key} ${nf(count(p, index))}` : t('tl.detections', { n: nf(count(p, index)) }))).join(' · ')}
+              {isForecast(index) && !futureOnly(index) ? ` · ${t('tl.forecast')}` : ''} · {t('tl.position', { i: index + 1, n: length })}
             </div>
           </>
         ) : (
