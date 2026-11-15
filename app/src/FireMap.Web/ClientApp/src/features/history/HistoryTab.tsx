@@ -1,5 +1,6 @@
 // History tab: the harmonized weekly burning calendar (spacechallenge app) in the Figma layout —
-// area chooser + draw area, Raw/Harmonized switch, key numbers, calendar, 0.5° cell map and week scrubber.
+// area chooser, Raw/Harmonized switch, key numbers, calendar, 0.5° cell map and week scrubber. Links with a
+// rectangle (r:w,s,e,n) still open as a custom area, calibrated in the browser (drawBbox).
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import L from 'leaflet';
 import K367, { type Grid } from '../../lib/chain';
@@ -8,7 +9,6 @@ import { historyHash, replaceHash, type CalendarView, type HistoryHash, type His
 import { useIsMobile, type Theme } from '../../lib/theme';
 import { weekLabel } from '../../lib/dates';
 import { createMap, viewOf, type AppMap } from '../../map/createMap';
-import { boundsBbox } from '../forecast/AreaSelector';
 import { useI18n, type MessageKey } from '../../i18n';
 import { Icon } from '../../components/Icon';
 import { Segmented } from '../../components/Segmented';
@@ -64,7 +64,7 @@ export function HistoryTab({
   initial: HistoryHash;
   sharedView: () => MapView | null;
   onViewChange: (v: MapView) => void;
-  /** Mobile drawer state; owned by App so the top bar's Controls button can open it. */
+  /** Mobile drawer state; owned by App so the top bar's Explore button can open it. */
   drawerOpen: boolean;
   setDrawerOpen: (open: boolean) => void;
 }) {
@@ -93,7 +93,6 @@ export function HistoryTab({
   const [grid, setGrid] = useState<Grid | null>(null);
   const [cellView, setCellView] = useState<CellView | null>(null);
   const [gridLoading, setGridLoading] = useState(false);
-  const [drawing, setDrawing] = useState(false);
   const [drawMsg, setDrawMsg] = useState<{ kind: 'info' | 'warn'; text: string } | null>(null);
   const [cellPick, setCellPick] = useState<{ k: number; latlng: L.LatLng } | null>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -116,7 +115,6 @@ export function HistoryTab({
       // a second click on the same cell closes its card
       setCellPick((prev) => (prev?.k === k ? null : { k, latlng })),
     );
-    m.map.pm.setGlobalOptions({ panes: { layerPane: 'selection', vertexPane: 'markerPane', markerPane: 'markerPane' } } as L.PM.GlobalOptions);
     Promise.all([loadIndex(), loadCountries()])
       .then(([idx, c]) => {
         setAreas(idx.aois);
@@ -299,45 +297,6 @@ export function HistoryTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countries, grids]);
 
-  // Geoman rectangle drawing.
-  useEffect(() => {
-    const m = appMap.current?.map;
-    if (!m) return;
-    const onCreate = (e: { shape: string; layer: L.Rectangle }) => {
-      if (e.shape !== 'Rectangle') return;
-      const bbox = boundsBbox(e.layer.getBounds());
-      e.layer.remove();
-      setDrawing(false);
-      fitNext.current = false;
-      void drawBbox(bbox);
-    };
-    const onEnd = () => setDrawing(false);
-    m.on('pm:create', onCreate as unknown as L.LeafletEventHandlerFn);
-    m.on('pm:drawend', onEnd);
-    return () => {
-      m.off('pm:create', onCreate as unknown as L.LeafletEventHandlerFn);
-      m.off('pm:drawend', onEnd);
-    };
-  }, [drawBbox]);
-
-  useEffect(() => {
-    const m = appMap.current?.map;
-    if (!m) return;
-    if (drawing) {
-      m.pm.enableDraw('Rectangle', {
-        snappable: false,
-        cursorMarker: false,
-        pathOptions: { color: '#533afd', weight: 2, fillOpacity: 0.08 },
-      } as L.PM.DrawModeOptions);
-      const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setDrawing(false);
-      document.addEventListener('keydown', onKey);
-      return () => {
-        document.removeEventListener('keydown', onKey);
-        m.pm.disableDraw();
-      };
-    }
-  }, [drawing]);
-
   const backToPreset = () => {
     setCustom(null);
     setDrawMsg(null);
@@ -490,11 +449,6 @@ export function HistoryTab({
             {error}
           </div>
         )}
-        {drawing && (
-          <div className="pill banner" data-kind="info">
-            {t('draw.hint')}
-          </div>
-        )}
       </div>
 
       {areaPicker('map-area-chip mobile-only')}
@@ -521,17 +475,6 @@ export function HistoryTab({
       >
         <div className="area-row">
           {areaPicker('area-select')}
-          <button
-            type="button"
-            className={`draw-button ${drawing ? 'active' : ''}`}
-            aria-pressed={drawing}
-            onClick={() => {
-              setDrawing(!drawing);
-              setDrawerOpen(false);
-            }}
-          >
-            <Icon name="draw" size={17} /> {drawing ? t('draw.cancel') : t('draw.area')}
-          </button>
         </div>
         {custom && (
           <div className="custom-info">

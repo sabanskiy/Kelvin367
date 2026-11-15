@@ -60,7 +60,7 @@ export function ForecastTab({
   initial: ForecastHash;
   sharedView: () => MapView | null;
   onViewChange: (v: MapView) => void;
-  /** Mobile drawer state; owned by App so the top bar's Controls button can open it. */
+  /** Mobile drawer state; owned by App so the top bar's Explore button can open it. */
   drawerOpen: boolean;
   setDrawerOpen: (open: boolean) => void;
 }) {
@@ -86,7 +86,7 @@ export function ForecastTab({
   const [dayIndex, setDayIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1000);
-  // The drawer opens only from the mobile Controls button and covers the map: pause playback.
+  // The drawer opens only from the mobile Explore button and covers the map: pause playback.
   useEffect(() => {
     if (drawerOpen) setPlaying(false);
   }, [drawerOpen]);
