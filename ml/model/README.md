@@ -1,20 +1,17 @@
-# Wildfire detection forecast for central Spain (CatBoost)
+<!-- AI-assisted: generated with Claude based on team's design. -->
+# Wildfire detection forecast for Spain (CatBoost)
 
-Daily fire-detection probability for each 0.25° × 0.25° cell (16 × 18 grid = 288 cells), **Day 1–3** horizon, issued at 00:00 UTC.
+Daily probability of a NOAA-20 fire detection for each 0.25° × 0.25° cell over Spain, issued at 00:00 UTC, up to **6 days** ahead.
 Labels come from NASA FIRMS detections. Runs in Google Colab + Google Drive.
 
 ## Notebooks
 
 | Notebook | Purpose |
 |---|---|
-| `Spain_NOAA20_NOSATS_3Day_CatBoost_2018_2025` | **Main training.** 3 models (Day 1/2/3), NOAA-20 target. No fire-derived features (FIRMS is used for labels only). Train 2012–06.2024, val 07–12.2024, test 2025 |
-| **`Spain_NOAA20_3Day_Grid_Predict_Colab`** | **Inference.** Loads the models saved by the notebook above and produces a live forecast (see below) |
-| `Spain_Raw_VIIRS_Aqua_CatBoost_Comparison_2012_2024` | Experiment: Aqua target (`MODIS_SP`, type=0), fire-history features from raw VIIRS (counts/FRP). Test 2024 |
-| `Spain_Harmonized_Aqua_CatBoost_Comparison_2012_2024` | Same setup, but the raw VIIRS block is replaced by a harmonized daily signal. Compared against Raw |
+| `Spain_NOAA20_NOSATS_3Day_CatBoost_2018_2025` | **Training.** 3 models (Day 1/2/3) on the central Spain grid (16 × 18 = 288 cells), NOAA-20 target. No fire-derived features (FIRMS is used for labels only). Train 2012–06.2024, val 07–12.2024, test 2025 |
+| **`Spain_NOAA20_6Day_Kelvin367_Predict_Colab`** | **Inference.** Loads the saved models and forecasts all cells intersecting Spain, 6 days ahead (see below) |
 
-Both *Comparison* notebooks also compare NOAA-20 vs Aqua targets on Day 1 (shared rows, 2018+).
-
-Main model results (test 2025, positive rate ≈ 1.3%):
+Training results (test 2025, positive rate ≈ 1.3%):
 
 | Lead | AP | F1 |
 |---|---|---|
@@ -24,55 +21,65 @@ Main model results (test 2025, positive rate ≈ 1.3%):
 
 ---
 
-## Predict notebook (`Spain_NOAA20_3Day_Grid_Predict_Colab`)
+## Predict notebook (`Spain_NOAA20_6Day_Kelvin367_Predict_Colab`)
 
-**What it does:** for a given issue date, computes the probability of ≥1 NOAA-20 detection in every cell for the next 3 days (UTC). Default is `2026-11-15`, 288 cells, 15–17 November.
+**What it does:** for an issue date, computes the probability of ≥1 NOAA-20 detection in every Spain cell for 6 UTC days. Default is `2026-11-15`, giving 15–20 November.
+
+### Read this first: how far to trust the scores
+| Scope | Status |
+|---|---|
+| Days 1–3, cells inside the training grid | **Validated** (trained horizon) |
+| Days 4–6 | **Experimental.** The Day 1–3 models are reused with later GFS weather; accuracy at these horizons is not evaluated |
+| Cells outside the training grid (`outside_training_grid: true`) | **Not validated geographically** |
+
+### Spain grid
+- Cells are the original 0.25° grid, kept if they overlap the Spain boundary by any area (coastal and border cells are full rectangles)
+- Boundary: the ESP feature from Kelvin367 `app/src/FireMap.Web/wwwroot/data/countries.json` (bundled in the notebook; set `COUNTRIES_JSON` to use a newer copy). The file's SHA-256 is stored in the output
 
 ### Requirements
-- Drive: `spain_firms_2012_2025/` containing
+- Drive: `spain_firms_2012_2025/` with
   - `model_runs/noaa20_environment_catboost_3day/<run>/` — `catboost_day{1,2,3}.cbm` + `model_manifest.json`
-  - `features/` — `elevation_by_cell.parquet`, `corine_*_by_cell.parquet`
-- An Earth Engine project (`EE_PROJECT` in the config cell or in Colab Secrets)
-- Optional: `spain.json` with history; the forecast is added under the `forecast` key
+  - `features/` — `elevation_by_cell.parquet`, `corine_*_by_cell.parquet` (reused where available; NASADEM and CORINE are downloaded for the remaining cells)
+- Earth Engine project: set `EE_PROJECT` in the config cell or in Colab Secrets (never commit it)
+- Optional: `spain.json` (weekly history); the forecast is added under `forecast`
 
 ### Configuration (first cell)
-- `ISSUE_DATE` — issue date (cannot be in the future)
-- `REQUESTED_DAYS` — requested days; the models actually support at most **3**
-- `RUN_DIR` — `None` = latest complete saved model run
-- `HISTORY_JSON`, `OUTPUT_PATH` — optional
+- `ISSUE_DATE` — issue date (not in the future)
+- `REQUESTED_DAYS` — 1–6 (default 6; models are trained for 3)
+- `RUN_DIR` — `None` = latest complete model run
+- `COUNTRIES_JSON`, `HISTORY_JSON`, `OUTPUT_PATH` — optional
 
 ### Feature sources
-- **GFS** (Earth Engine) — forecast from the previous day's 18:00 UTC cycle: Tmax, RHmin, wind, precipitation for Day 1–3
-- **SMAP** — surface soil moisture (8-day lag, 7-day mean)
-- **MODIS Terra NDMI** — vegetation moisture (11-day lag, fallback up to 24 days)
-- **FWI** — computed with `xclim` from GFS (120-day warm-up)
-- **Static** — elevation, slope, CORINE land cover (from Drive)
-- Plus location and seasonality, trailing windows, SMAP/NDMI changes, observation ages
+- **GFS** (Earth Engine) — previous day's 18:00 UTC cycle: Tmax, RHmin, wind, precipitation. All 6 days use this same cycle
+- **SMAP** soil moisture · **MODIS Terra NDMI** · **FWI** (via `xclim`, 120-day warm-up)
+- **Static** — NASADEM elevation/slope, CORINE land cover
+- Plus location, seasonality, trailing windows and observation ages
 
-Feature names and order are validated against `model_manifest.json`; a mismatch raises an error.
+Feature names and order are validated against `model_manifest.json`.
 
 ### API
 ```python
-forecast_grid("2026-11-15", days=3)                                  # whole grid
-predict("2026-11-15", latitude=40.4168, longitude=-3.7038, days=3)   # single cell
+forecast_grid("2026-11-15", days=6)                                  # whole grid
+predict("2026-11-15", latitude=40.4168, longitude=-3.7038, days=6)   # one point inside Spain
 ```
 - `series.noaa20_detection_probability[day][cell]` — probability, 0–1
+- `quality.method_by_day` — `trained_horizon` or `experimental` per day
+- `quality.model_horizon_by_day` — which trained model (1–3) scored each day
 - `null` = no GFS data for that cell/horizon
 - Cell bounds: west/south inclusive, east/north exclusive
 
 ### Output
-`forecast_runs/noaa20_environment_catboost_3day/<date>/spain_forecast.json` on Drive.
+`forecast_runs/noaa20_environment_catboost_spain/<date>/spain_forecast.json` on Drive.
 The original `spain.json` is never overwritten.
 
 ### Notes
-- This is the **probability of a satellite detection**, not a guarantee of fire; it depends on overpass timing, clouds and sensor sensitivity
-- If SMAP/NDMI/FWI are unavailable, the forecast still runs but with `NaN` in those features (see `warnings` and `missing_model_features`)
-- Live FWI can differ slightly from the training FWI (different warm-up)
+- This is the **probability of a satellite detection**, not a guarantee of fire; overpass timing, clouds and sensor sensitivity affect it
+- If SMAP/NDMI/FWI are unavailable, the forecast still runs with `NaN` in those features (see `warnings`, `missing_model_features`)
+- Live FWI can differ slightly from training FWI (different warm-up)
 
 ---
 
 ## Workflow
 1. Data preparation (FIRMS + environmental features) → Drive
 2. `NOSATS_3Day_CatBoost` → train and save models
-3. `Grid_Predict_Colab` → daily forecast
-4. Comparison notebooks are standalone experiments, not needed for forecasting
+3. `6Day_Kelvin367_Predict_Colab` → forecast for Spain
